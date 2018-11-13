@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="PvWindow" parent="GtkWindow">
+    <child type="titlebar">
+      <object class="GtkHeaderBar">
+        <property name="visible">True</property>
+        <property name="title" translatable="yes">Pivox</property>
+        <property name="show-close-button">True</property>
+      </object>
+    </child>
     <child>
       <object class="GtkGLArea">
         <property name="visible">True</property>
