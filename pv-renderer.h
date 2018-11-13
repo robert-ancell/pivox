@@ -12,6 +12,13 @@
 
 #include <glib-object.h>
 
+#include "pv-map.h"
+
 G_DECLARE_FINAL_TYPE (PvRenderer, pv_renderer, PV, RENDERER, GObject)
 
-PvRenderer *pv_renderer_new (void);
+PvRenderer *pv_renderer_new     (void);
+
+void        pv_renderer_set_map (PvRenderer *renderer,
+                                 PvMap      *map);
+
+void        pv_renderer_render  (PvRenderer *renderer);

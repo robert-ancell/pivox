@@ -12,6 +12,11 @@
 
 #include <gtk/gtk.h>
 
+#include "pv-renderer.h"
+
 G_DECLARE_FINAL_TYPE (PvWindow, pv_window, PV, WINDOW, GtkWindow)
 
-PvWindow *pv_window_new (void);
+PvWindow *pv_window_new          (void);
+
+void      pv_window_set_renderer (PvWindow   *window,
+                                  PvRenderer *renderer);
