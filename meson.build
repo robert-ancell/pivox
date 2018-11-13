@@ -5,7 +5,9 @@ gtk_dep = dependency ('gtk+-3.0')
 executable ('pivox',
             [
               'pv-application.c',
-              'pv-window.c',              
+              'pv-map.c',
+              'pv-renderer.c',
+              'pv-window.c',
               'main.c',
             ],
             dependencies: [ gtk_dep ],
