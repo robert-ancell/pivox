@@ -8,7 +8,7 @@
  * license.
  */
 
-#include <GLES2/gl2.h>
+#include <epoxy/gl.h>
 
 #include "pv-window.h"
 

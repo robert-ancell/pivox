@@ -2,7 +2,7 @@ project ('pivox', 'c')
 
 gnome = import ('gnome')
 
-glesv2_dep = dependency ('glesv2')
+epoxy_dep = dependency ('epoxy')
 gtk_dep = dependency ('gtk+-3.0')
 
 resources = gnome.compile_resources ('pv-resources',
@@ -18,5 +18,5 @@ executable ('pivox',
               'pv-window.c',
               'main.c',
             ] + resources,
-            dependencies: [ glesv2_dep, gtk_dep ],
+            dependencies: [ epoxy_dep, gtk_dep ],
             install: true)

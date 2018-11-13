@@ -8,7 +8,7 @@
  * license.
  */
 
-#include <GLES2/gl2.h>
+#include <epoxy/gl.h>
 
 #include "pv-renderer.h"
 
@@ -18,10 +18,8 @@ struct _PvRenderer
 
     PvMap  *map;
 
-    GLuint  vertex_shader;
-    GLuint  fragment_shader;
     GLuint  program;
-    GLuint  buffer;
+    GLuint  vao;
 };
 
 G_DEFINE_TYPE (PvRenderer, pv_renderer, G_TYPE_OBJECT)
@@ -41,27 +39,43 @@ const GLchar* fragment_shader_code =
 static void
 setup (PvRenderer *self)
 {
-    if (self->buffer != 0)
+    if (self->vao != 0)
         return;
 
-    glGenBuffers (1, &self->buffer);
-    glBindBuffer (GL_ARRAY_BUFFER, self->buffer);
+    glGenVertexArrays (1, &self->vao);
+    glBindVertexArray (self->vao);
+
+    GLuint buffer;
+    glGenBuffers (1, &buffer);
+    glBindBuffer (GL_ARRAY_BUFFER, buffer);
     GLfloat vertices[] = { 0.0f, 0.5f, 0.5f, -0.5f, -0.5f, -0.5f };
     glBufferData (GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
 
-    self->vertex_shader = glCreateShader (GL_VERTEX_SHADER);
-    glShaderSource (self->vertex_shader, 1, &vertex_shader_code, NULL);
-    glCompileShader (self->vertex_shader);
+    GLuint vertex_shader = glCreateShader (GL_VERTEX_SHADER);
+    glShaderSource (vertex_shader, 1, &vertex_shader_code, NULL);
+    glCompileShader (vertex_shader);
+    GLint status;
+    glGetShaderiv (vertex_shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE)
+       g_printerr ("Failed to compile vertex shader\n");
 
-    self->fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
-    glShaderSource (self->fragment_shader, 1, &fragment_shader_code, NULL);
-    glCompileShader (self->fragment_shader);
+    GLuint fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
+    glShaderSource (fragment_shader, 1, &fragment_shader_code, NULL);
+    glCompileShader (fragment_shader);
+    glGetShaderiv (fragment_shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE)
+       g_printerr ("Failed to compile fragment shader\n");
 
     self->program = glCreateProgram ();
-    glAttachShader (self->program, self->vertex_shader);
-    glAttachShader (self->program, self->fragment_shader);
+    glAttachShader (self->program, vertex_shader);
+    glAttachShader (self->program, fragment_shader);
     glLinkProgram (self->program);
-    glUseProgram (self->program);
+    glGetProgramiv (self->program, GL_LINK_STATUS, &status);
+    if (status == GL_FALSE)
+       g_printerr ("Failed to link program\n");
+
+    glDetachShader (self->program, vertex_shader);
+    glDetachShader (self->program, fragment_shader);
 
     GLint position_attr = glGetAttribLocation (self->program, "position");
     glEnableVertexAttribArray (position_attr);
@@ -121,5 +135,7 @@ pv_renderer_render (PvRenderer *self)
 
     setup (self);
 
+    glUseProgram (self->program);
+    glBindVertexArray (self->vao);
     glDrawArrays (GL_TRIANGLES, 0, 3);
 }
