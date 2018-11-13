@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/example/pivox">
+    <file preprocess="xml-stripblanks">pv-window.ui</file>
+  </gresource>
+</gresources>

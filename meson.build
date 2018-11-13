@@ -1,6 +1,13 @@
 project ('pivox', 'c')
 
+gnome = import ('gnome')
+
+glesv2_dep = dependency ('glesv2')
 gtk_dep = dependency ('gtk+-3.0')
+
+resources = gnome.compile_resources ('pv-resources',
+                                     'pv-resources.gresource.xml',
+                                     c_name: 'pv_resources')
 
 executable ('pivox',
             [
@@ -10,6 +17,6 @@ executable ('pivox',
               'pv-renderer.c',
               'pv-window.c',
               'main.c',
-            ],
-            dependencies: [ gtk_dep ],
+            ] + resources,
+            dependencies: [ glesv2_dep, gtk_dep ],
             install: true)

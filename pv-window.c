@@ -8,6 +8,8 @@
  * license.
  */
 
+#include <GLES2/gl2.h>
+
 #include "pv-window.h"
 
 struct _PvWindow
@@ -17,14 +19,43 @@ struct _PvWindow
 
 G_DEFINE_TYPE (PvWindow, pv_window, GTK_TYPE_WINDOW)
 
+static void
+realize_cb (PvWindow *window)
+{
+}
+
+static void
+unrealize_cb (PvWindow *window)
+{
+}
+
+static gboolean
+render_cb (PvWindow *window)
+{
+    glClearColor (0.5, 0.5, 0.5, 1.0);
+    glClear (GL_COLOR_BUFFER_BIT);
+
+    glFlush ();
+
+    return FALSE;
+}
+
 void
 pv_window_class_init (PvWindowClass *klass)
 {
+    GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+
+    gtk_widget_class_set_template_from_resource (widget_class, "/com/example/pivox/pv-window.ui");
+
+    gtk_widget_class_bind_template_callback (widget_class, realize_cb);
+    gtk_widget_class_bind_template_callback (widget_class, unrealize_cb);
+    gtk_widget_class_bind_template_callback (widget_class, render_cb);
 }
 
 void
 pv_window_init (PvWindow *self)
 {
+    gtk_widget_init_template (GTK_WIDGET (self));
 }
 
 PvWindow *
