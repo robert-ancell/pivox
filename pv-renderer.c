@@ -46,6 +46,46 @@ load_shader (GLenum shader_type, const gchar *filename)
     return shader;
 }
 
+static guint
+add_square (GLfloat *vertices,
+            guint    x,
+            guint    y,
+            guint    z)
+{
+    GLfloat s = 1.0f;
+    GLfloat x0 = x * s - 4.0f;
+    GLfloat y0 = y * s - 4.0f;
+    GLfloat x1 = x0 + s;
+    GLfloat y1 = y0 + s;
+    GLfloat z0 = z * s - 4.0f;
+
+    vertices[ 0] = x0;
+    vertices[ 1] = y0;
+    vertices[ 2] = z0;
+
+    vertices[ 3] = x1;
+    vertices[ 4] = y0;
+    vertices[ 5] = z0;
+
+    vertices[ 6] = x1;
+    vertices[ 7] = y1;
+    vertices[ 8] = z0;
+
+    vertices[ 9] = x0;
+    vertices[10] = y0;
+    vertices[11] = z0;
+
+    vertices[12] = x1;
+    vertices[13] = y1;
+    vertices[14] = z0;
+
+    vertices[15] = x0;
+    vertices[16] = y1;
+    vertices[17] = z0;
+
+    return 18;
+}
+
 static void
 setup (PvRenderer *self)
 {
@@ -58,12 +98,25 @@ setup (PvRenderer *self)
     GLuint buffer;
     glGenBuffers (1, &buffer);
     glBindBuffer (GL_ARRAY_BUFFER, buffer);
-    GLfloat z = -4;
-    GLfloat vertices[] = { -0.5f, -0.5f, z,
-                           -0.5f,  0.5f, z,
-                            0.5f,  0.5f, z,
-                            0.5f, -0.5f, z };
-    glBufferData (GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
+
+    guint n_vertices = 0;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            PvBlockType *type = pv_map_get_block (self->map, x, y, 0);
+            if (type != NULL)
+                n_vertices += 18;
+        }
+    }
+    GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
+    guint offset = 0;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            PvBlockType *type = pv_map_get_block (self->map, x, y, 0);
+            if (type != NULL)
+                offset += add_square (&vertices[offset], x, y, 0);
+        }
+    }
+    glBufferData (GL_ARRAY_BUFFER, n_vertices * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
     GLuint fragment_shader = load_shader (GL_FRAGMENT_SHADER, "pv-fragment.glsl");
@@ -173,5 +226,5 @@ pv_renderer_render (PvRenderer *self)
     glUniformMatrix4fv (self->mvp, 1, GL_TRUE, mvp);
 
     glBindVertexArray (self->vao);
-    glDrawArrays (GL_TRIANGLE_FAN, 0, 4);
+    glDrawArrays (GL_TRIANGLES, 0, 6 * pv_map_get_width (self->map) * pv_map_get_height (self->map));
 }

@@ -57,16 +57,18 @@ pv_map_init (PvMap *self)
 {
     self->block_types = g_ptr_array_new_with_free_func (g_object_unref);
 
-    self->width = 128;
-    self->height = 128;
-    self->depth = 128;
+    self->width = 8;
+    self->height = 8;
+    self->depth = 1;
     self->blocks = g_malloc0_n (self->width * self->height * self->depth, 1);
 
+    g_ptr_array_add (self->block_types, NULL); /* air */
     g_autoptr(PvBlockType) ground_type = pv_block_type_new ("ground");
     g_ptr_array_add (self->block_types, g_object_ref (ground_type));
     for (guint x = 0; x < self->width; x++) {
         for (guint y = 0; y < self->height; y++) {
-            self->blocks[y * self->width + x] = 1;
+            if ((x + y) % 2 == 1)
+                self->blocks[y * self->width + x] = 1;
         }
     }
 }
@@ -106,7 +108,7 @@ pv_map_get_block (PvMap *self,
 {
     g_return_val_if_fail (PV_IS_MAP (self), NULL);
 
-    if (x >= self->width || y >= self->height || x >= self->depth)
+    if (x >= self->width || y >= self->height || z >= self->depth)
         return NULL;
 
     guint id = self->blocks[(z * self->height + y) * self->width + x];
