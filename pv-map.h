@@ -12,6 +12,19 @@
 
 #include <glib-object.h>
 
+#include "pv-block-type.h"
+
 G_DECLARE_FINAL_TYPE (PvMap, pv_map, PV, MAP, GObject)
 
-PvMap *pv_map_new (void);
+PvMap       *pv_map_new        (void);
+
+guint        pv_map_get_width  (PvMap *map);
+
+guint        pv_map_get_height (PvMap *map);
+
+guint        pv_map_get_depth  (PvMap *map);
+
+PvBlockType *pv_map_get_block  (PvMap *map,
+                                guint  x,
+                                guint  y,
+                                guint  z);
