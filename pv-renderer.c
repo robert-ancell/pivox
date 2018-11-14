@@ -21,6 +21,7 @@ struct _PvRenderer
 
     GLuint  program;
     GLuint  vao;
+    GLint   mvp;
 };
 
 G_DEFINE_TYPE (PvRenderer, pv_renderer, G_TYPE_OBJECT)
@@ -81,6 +82,8 @@ setup (PvRenderer *self)
     glEnableVertexAttribArray (position_attr);
     glVertexAttribPointer (position_attr, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
+    self->mvp = glGetUniformLocation (self->program, "MVP");
+
     const gchar *renderer = (gchar *) glGetString (GL_RENDERER);
     g_printerr ("renderer: %s\n", renderer);
 }
@@ -136,6 +139,11 @@ pv_renderer_render (PvRenderer *self)
     setup (self);
 
     glUseProgram (self->program);
+    GLfloat mvp[16] = { 1, 0, 0, 0,
+                        0, 1, 0, 0,
+                        0, 0, 1, 0,
+                        0, 0, 0, 1 };
+    glUniformMatrix4fv (self->mvp, 1, GL_FALSE, mvp);
     glBindVertexArray (self->vao);
     glDrawArrays (GL_TRIANGLE_FAN, 0, 4);
 }
