@@ -20,6 +20,10 @@ struct _PvRenderer
 
     PvMap  *map;
 
+    GLfloat camera_x;
+    GLfloat camera_y;
+    GLfloat camera_z;
+
     GLuint  program;
     GLuint  vao;
     GLint   mvp;
@@ -184,6 +188,18 @@ pv_renderer_set_map (PvRenderer *self,
 
     g_clear_object (&self->map);
     self->map = g_object_ref (map);
+}
+
+void
+pv_renderer_set_camera (PvRenderer *self,
+                        gfloat      x,
+                        gfloat      y,
+                        gfloat      z)
+{
+    g_return_if_fail (PV_IS_RENDERER (self));
+    self->camera_x = x;
+    self->camera_y = y;
+    self->camera_z = z;
 }
 
 static void
