@@ -3,4 +3,8 @@
   <gresource prefix="/com/example/pivox">
     <file preprocess="xml-stripblanks">pv-window.ui</file>
   </gresource>
+  <gresource prefix="/com/example/pivox">
+    <file>pv-fragment.glsl</file>
+    <file>pv-vertex.glsl</file>
+  </gresource>
 </gresources>

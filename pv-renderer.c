@@ -9,6 +9,7 @@
  */
 
 #include <epoxy/gl.h>
+#include <gio/gio.h>
 
 #include "pv-renderer.h"
 
@@ -24,17 +25,24 @@ struct _PvRenderer
 
 G_DEFINE_TYPE (PvRenderer, pv_renderer, G_TYPE_OBJECT)
 
-const GLchar* vertex_shader_code =
-    "attribute vec4 position;\n"
-    "void main ()\n"
-    "{\n"
-    "   gl_Position = vec4 (position.xyz, 1.0);\n"
-    "}\n";
-const GLchar* fragment_shader_code =
-    "void main ()\n"
-    "{\n"
-    "  gl_FragColor = vec4 (1.0, 1.0, 1.0, 1.0);\n"
-    "}\n";
+static GLuint
+load_shader (GLenum shader_type, const gchar *filename)
+{
+    g_autofree gchar *path = g_strdup_printf ("/com/example/pivox/%s", filename);
+    g_autoptr(GBytes) shader_source = g_resources_lookup_data (path, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+    const gchar *shader_text = g_bytes_get_data (shader_source, NULL);
+
+    GLuint shader = glCreateShader (shader_type);
+    glShaderSource (shader, 1, &shader_text, NULL);
+    glCompileShader (shader);
+
+    GLint status;
+    glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE)
+       g_printerr ("Failed to compile shader\n");
+
+    return shader;
+}
 
 static void
 setup (PvRenderer *self)
@@ -54,25 +62,14 @@ setup (PvRenderer *self)
                             0.5f, -0.5f };
     glBufferData (GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
 
-    GLuint vertex_shader = glCreateShader (GL_VERTEX_SHADER);
-    glShaderSource (vertex_shader, 1, &vertex_shader_code, NULL);
-    glCompileShader (vertex_shader);
-    GLint status;
-    glGetShaderiv (vertex_shader, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE)
-       g_printerr ("Failed to compile vertex shader\n");
-
-    GLuint fragment_shader = glCreateShader (GL_FRAGMENT_SHADER);
-    glShaderSource (fragment_shader, 1, &fragment_shader_code, NULL);
-    glCompileShader (fragment_shader);
-    glGetShaderiv (fragment_shader, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE)
-       g_printerr ("Failed to compile fragment shader\n");
+    GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
+    GLuint fragment_shader = load_shader (GL_FRAGMENT_SHADER, "pv-fragment.glsl");
 
     self->program = glCreateProgram ();
     glAttachShader (self->program, vertex_shader);
     glAttachShader (self->program, fragment_shader);
     glLinkProgram (self->program);
+    GLint status;
     glGetProgramiv (self->program, GL_LINK_STATUS, &status);
     if (status == GL_FALSE)
        g_printerr ("Failed to link program\n");
