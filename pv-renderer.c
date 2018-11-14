@@ -48,7 +48,10 @@ setup (PvRenderer *self)
     GLuint buffer;
     glGenBuffers (1, &buffer);
     glBindBuffer (GL_ARRAY_BUFFER, buffer);
-    GLfloat vertices[] = { 0.0f, 0.5f, 0.5f, -0.5f, -0.5f, -0.5f };
+    GLfloat vertices[] = { -0.5f, -0.5f,
+                           -0.5f,  0.5f,
+                            0.5f,  0.5f,
+                            0.5f, -0.5f };
     glBufferData (GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
 
     GLuint vertex_shader = glCreateShader (GL_VERTEX_SHADER);
@@ -137,5 +140,5 @@ pv_renderer_render (PvRenderer *self)
 
     glUseProgram (self->program);
     glBindVertexArray (self->vao);
-    glDrawArrays (GL_TRIANGLES, 0, 3);
+    glDrawArrays (GL_TRIANGLE_FAN, 0, 4);
 }
