@@ -10,6 +10,7 @@
 
 #include <epoxy/gl.h>
 #include <gio/gio.h>
+#include <math.h>
 
 #include "pv-renderer.h"
 
@@ -57,10 +58,11 @@ setup (PvRenderer *self)
     GLuint buffer;
     glGenBuffers (1, &buffer);
     glBindBuffer (GL_ARRAY_BUFFER, buffer);
-    GLfloat vertices[] = { -0.5f, -0.5f,
-                           -0.5f,  0.5f,
-                            0.5f,  0.5f,
-                            0.5f, -0.5f };
+    GLfloat z = -4;
+    GLfloat vertices[] = { -0.5f, -0.5f, z,
+                           -0.5f,  0.5f, z,
+                            0.5f,  0.5f, z,
+                            0.5f, -0.5f, z };
     glBufferData (GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
@@ -80,7 +82,7 @@ setup (PvRenderer *self)
 
     GLint position_attr = glGetAttribLocation (self->program, "position");
     glEnableVertexAttribArray (position_attr);
-    glVertexAttribPointer (position_attr, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     self->mvp = glGetUniformLocation (self->program, "MVP");
 
@@ -131,6 +133,32 @@ pv_renderer_set_map (PvRenderer *self,
     self->map = g_object_ref (map);
 }
 
+static void
+make_projection_matrix (GLfloat  fov_y,
+                        GLfloat  aspect,
+                        GLfloat  z_near,
+                        GLfloat  z_far,
+                        GLfloat *m)
+{
+    GLfloat f = atanf (fov_y / 2.0f);
+    m[ 0] = f / aspect;
+    m[ 1] = 0;
+    m[ 2] = 0;
+    m[ 3] = 0;
+    m[ 4] = 0;
+    m[ 5] = f;
+    m[ 6] = 0;
+    m[ 7] = 0;
+    m[ 8] = 0;
+    m[ 9] = 0;
+    m[10] = (z_far + z_near) / (z_near - z_far);
+    m[11] = (2.0f * z_far * z_near) / (z_near - z_far);
+    m[12] = 0;
+    m[13] = 0;
+    m[14] = -1.0f;
+    m[15] = 0;
+}
+
 void
 pv_renderer_render (PvRenderer *self)
 {
@@ -139,11 +167,11 @@ pv_renderer_render (PvRenderer *self)
     setup (self);
 
     glUseProgram (self->program);
-    GLfloat mvp[16] = { 1, 0, 0, 0,
-                        0, 1, 0, 0,
-                        0, 0, 1, 0,
-                        0, 0, 0, 1 };
-    glUniformMatrix4fv (self->mvp, 1, GL_FALSE, mvp);
+
+    GLfloat mvp[16];
+    make_projection_matrix (M_PI / 3.0f, 1.0f, 0.1f, 100.0f, mvp);
+    glUniformMatrix4fv (self->mvp, 1, GL_TRUE, mvp);
+
     glBindVertexArray (self->vao);
     glDrawArrays (GL_TRIANGLE_FAN, 0, 4);
 }
