@@ -37,7 +37,10 @@ static gboolean
 render_cb (PvWindow *self)
 {
     glClearColor (0.5, 0.5, 0.5, 1.0);
-    glClear (GL_COLOR_BUFFER_BIT);
+    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glEnable (GL_DEPTH_TEST);
+    glDepthFunc (GL_LESS);
 
     GtkAllocation alloc;
     gtk_widget_get_allocation (GTK_WIDGET (self->gl_area), &alloc);
