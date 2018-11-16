@@ -62,8 +62,8 @@ pv_application_init (PvApplication *self)
 {
     self->map = pv_map_new ();
     self->camera = pv_camera_new ();
-    pv_camera_set_position (self->camera, 0.0, 0.0, 2.0);
-    pv_camera_set_target (self->camera, 4.0, 4.0, 0.0);
+    pv_camera_set_position (self->camera, 0.0, 0.0, 3.0);
+    pv_camera_set_target (self->camera, pv_map_get_width (self->map) / 2.0, pv_map_get_height (self->map) / 2.0, 0.0);
 }
 
 PvApplication *
