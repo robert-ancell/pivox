@@ -114,8 +114,11 @@ setup (PvRenderer *self)
     }
 
     GLfloat north[3] = {  1,  0,  0 };
+    GLfloat south[3] = { -1,  0,  0 };
     GLfloat east[3]  = {  0,  1,  0 };
+    GLfloat west[3]  = {  0, -1,  0 };
     GLfloat up[3]    = {  0,  0,  1 };
+    GLfloat down[3]  = {  0,  0, -1 };
 
     GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
     guint offset = 0;
@@ -128,7 +131,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
+                GLfloat top_pos[3] = { x + 1, y + 1, z + 1};
                 offset += add_square (&vertices[offset], base_pos, north, east);
+                offset += add_square (&vertices[offset], top_pos, west, south);
             }
         }
     }
@@ -142,7 +147,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
+                GLfloat top_pos[3] = { x + 1, y + 1, z + 1};
                 offset += add_square (&vertices[offset], base_pos, east, up);
+                offset += add_square (&vertices[offset], top_pos, down, west);
             }
         }
     }
@@ -156,7 +163,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
+                GLfloat top_pos[3] = { x + 1, y + 1, z + 1};
                 offset += add_square (&vertices[offset], base_pos, up, north);
+                offset += add_square (&vertices[offset], top_pos, south, down);
             }
         }
     }
