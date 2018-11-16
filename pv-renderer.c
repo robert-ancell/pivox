@@ -10,26 +10,20 @@
 
 #include <epoxy/gl.h>
 #include <gio/gio.h>
-#include <math.h>
 
 #include "pv-renderer.h"
 
 struct _PvRenderer
 {
-    GObject parent_instance;
+    GObject   parent_instance;
 
-    PvMap  *map;
+    PvMap    *map;
 
-    GLfloat camera_x;
-    GLfloat camera_y;
-    GLfloat camera_z;
-    GLfloat target_x;
-    GLfloat target_y;
-    GLfloat target_z;
+    PvCamera *camera;
 
-    GLuint  program;
-    GLuint  vao;
-    GLint   mvp;
+    GLuint    program;
+    GLuint    vao;
+    GLint     mvp;
 };
 
 G_DEFINE_TYPE (PvRenderer, pv_renderer, G_TYPE_OBJECT)
@@ -156,6 +150,7 @@ pv_renderer_dispose (GObject *object)
     PvRenderer *self = PV_RENDERER (object);
 
     g_clear_object (&self->map);
+    g_clear_object (&self->camera);
 
     G_OBJECT_CLASS (pv_renderer_parent_class)->dispose (object);
 }
@@ -195,134 +190,16 @@ pv_renderer_set_map (PvRenderer *self,
 
 void
 pv_renderer_set_camera (PvRenderer *self,
-                        gfloat      x,
-                        gfloat      y,
-                        gfloat      z,
-                        gfloat      target_x,
-                        gfloat      target_y,
-                        gfloat      target_z)
+                        PvCamera   *camera)
 {
     g_return_if_fail (PV_IS_RENDERER (self));
-    self->camera_x = x;
-    self->camera_y = y;
-    self->camera_z = z;
-    self->target_x = target_x;
-    self->target_y = target_y;
-    self->target_z = target_z;
-}
+    g_return_if_fail (camera == NULL || PV_IS_CAMERA (camera));
 
-static void
-vector_make (GLfloat  x,
-             GLfloat  y,
-             GLfloat  z,
-             GLfloat *result)
-{
-    result[0] = x;
-    result[1] = y;
-    result[2] = z;
-}
-
-static void
-vector_normalize (GLfloat *v)
-{
-    GLfloat l = sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-    if (l == 0)
+    if (self->camera == camera)
         return;
-    v[0] /= l;
-    v[1] /= l;
-    v[2] /= l;
-}
 
-static void
-vector_cross (GLfloat *a,
-              GLfloat *b,
-              GLfloat *result)
-{
-    vector_make (a[1]*b[2] - a[2]*b[1],
-                 a[2]*b[0] - a[0]*b[2],
-                 a[0]*b[1] - a[1]*b[0],
-                 result);
-}
-
-static void
-matrix_make (GLfloat v00, GLfloat v10, GLfloat v20, GLfloat v30,
-             GLfloat v01, GLfloat v11, GLfloat v21, GLfloat v31,
-             GLfloat v02, GLfloat v12, GLfloat v22, GLfloat v32,
-             GLfloat v03, GLfloat v13, GLfloat v23, GLfloat v33,
-             GLfloat *result)
-{
-    result[ 0] = v00;
-    result[ 1] = v10;
-    result[ 2] = v20;
-    result[ 3] = v30;
-    result[ 4] = v01;
-    result[ 5] = v11;
-    result[ 6] = v21;
-    result[ 7] = v31;
-    result[ 8] = v02;
-    result[ 9] = v12;
-    result[10] = v22;
-    result[11] = v32;
-    result[12] = v03;
-    result[13] = v13;
-    result[14] = v23;
-    result[15] = v33;
-}
-
-static void
-matrix_make_projection (GLfloat  fov_y,
-                        GLfloat  aspect,
-                        GLfloat  z_near,
-                        GLfloat  z_far,
-                        GLfloat *result)
-{
-    GLfloat f = atanf (fov_y / 2.0f);
-    GLfloat a = f / aspect;
-    GLfloat b = (z_far + z_near) / (z_near - z_far);
-    GLfloat c = (2.0f * z_far * z_near) / (z_near - z_far);
-    matrix_make ( a,  0,  0,  0,
-                  0,  f,  0,  0,
-                  0,  0,  b,  c,
-                  0,  0, -1,  0,
-                 result);
-}
-
-static void
-matrix_make_direction (GLfloat *dir,
-                       GLfloat *up,
-                       GLfloat *result)
-{
-    GLfloat s[3];
-    vector_cross (dir, up, s);
-    GLfloat u[3];
-    vector_cross (dir, s, u);
-    matrix_make (   s[0],    s[1],    s[2], 0,
-                    u[0],    u[1],    u[2], 0,
-                 -dir[0], -dir[1], -dir[2], 0,
-                       0,       0,       0, 1,
-                 result);
-}
-
-static void
-matrix_mult (GLfloat *a, GLfloat *b, GLfloat *result)
-{
-    for (int row = 0; row < 4; row++) {
-        for (int col = 0; col < 4; col++) {
-            result[col * 4 + row] = 0;
-            for (int i = 0; i < 4; i++)
-                result[col * 4 + row] += a[col * 4 + i] * b[i * 4 + row];
-        }
-    }
-}
-
-static void
-matrix_translate (GLfloat x, GLfloat y, GLfloat z, GLfloat *result)
-{
-    matrix_make (1, 0, 0, x,
-                 0, 1, 0, y,
-                 0, 0, 1, z,
-                 0, 0, 0, 1,
-                 result);
+    g_clear_object (&self->camera);
+    self->camera = g_object_ref (camera);
 }
 
 void
@@ -336,26 +213,7 @@ pv_renderer_render (PvRenderer *self,
 
     glUseProgram (self->program);
 
-    GLfloat proj[16];
-    matrix_make_projection (M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f, proj);
-
-    GLfloat trans[16];
-    matrix_translate (self->camera_x, self->camera_y, self->camera_z, trans);
-    GLfloat rot[16];
-    GLfloat up[3], dir[3];
-    vector_make (0, 0, 1, up);
-    vector_make (self->target_x - self->camera_x,
-                 self->target_y - self->camera_y,
-                 self->target_z - self->camera_z,
-                 dir);
-    vector_normalize (dir);
-    matrix_make_direction (dir, up, rot);
-    GLfloat t[16];
-    matrix_mult (proj, rot, t);
-    GLfloat mvp[16];
-    matrix_mult (t, trans, mvp);
-
-    glUniformMatrix4fv (self->mvp, 1, GL_TRUE, mvp);
+    pv_camera_transform (self->camera, width, height, self->mvp);
 
     glBindVertexArray (self->vao);
     glDrawArrays (GL_TRIANGLES, 0, 6 * pv_map_get_width (self->map) * pv_map_get_height (self->map));

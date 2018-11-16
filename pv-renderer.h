@@ -12,6 +12,7 @@
 
 #include <glib-object.h>
 
+#include "pv-camera.h"
 #include "pv-map.h"
 
 G_DECLARE_FINAL_TYPE (PvRenderer, pv_renderer, PV, RENDERER, GObject)
@@ -22,12 +23,7 @@ void        pv_renderer_set_map    (PvRenderer *renderer,
                                     PvMap      *map);
 
 void        pv_renderer_set_camera (PvRenderer *renderer,
-                                    gfloat      x,
-                                    gfloat      y,
-                                    gfloat      z,
-                                    gfloat      target_x,
-                                    gfloat      target_y,
-                                    gfloat      target_z);
+                                    PvCamera   *camera);
 
 void        pv_renderer_render     (PvRenderer *renderer,
                                     guint       width,

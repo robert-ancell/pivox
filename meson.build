@@ -15,6 +15,7 @@ executable ('pivox',
             [
               'pv-application.c',
               'pv-block-type.c',
+              'pv-camera.c',
               'pv-map.c',
               'pv-renderer.c',
               'pv-window.c',

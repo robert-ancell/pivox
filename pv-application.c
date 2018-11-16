@@ -17,6 +17,7 @@ struct _PvApplication
     GtkApplication parent_instance;
 
     PvMap         *map;
+    PvCamera      *camera;
 };
 
 G_DEFINE_TYPE (PvApplication, pv_application, GTK_TYPE_APPLICATION)
@@ -32,9 +33,7 @@ pv_application_activate (GApplication *app)
 
     g_autoptr(PvRenderer) renderer = pv_renderer_new ();
     pv_renderer_set_map (renderer, self->map);
-    pv_renderer_set_camera (renderer,
-                            0.0, 0.0, 2.0,
-                            4.0, 4.0, 0.0);
+    pv_renderer_set_camera (renderer, self->camera);
     pv_window_set_renderer (window, renderer);
 }
 
@@ -62,6 +61,9 @@ void
 pv_application_init (PvApplication *self)
 {
     self->map = pv_map_new ();
+    self->camera = pv_camera_new ();
+    pv_camera_set_position (self->camera, 0.0, 0.0, 2.0);
+    pv_camera_set_target (self->camera, 4.0, 4.0, 0.0);
 }
 
 PvApplication *
