@@ -121,12 +121,14 @@ setup (PvRenderer *self)
     self->z_offset = offset;
     for (guint x = 0; x < pv_map_get_width (self->map); x++) {
         for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            PvBlockType *type = pv_map_get_block (self->map, x, y, 0);
-            if (type == NULL)
-                continue;
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
 
-            GLfloat base_pos[3] = { x, y, 0 };
-            offset += add_square (&vertices[offset], base_pos, north, east);
+                GLfloat base_pos[3] = { x, y, z };
+                offset += add_square (&vertices[offset], base_pos, north, east);
+            }
         }
     }
     self->z_size = offset - self->z_offset;
