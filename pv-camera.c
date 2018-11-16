@@ -15,14 +15,11 @@
 
 struct _PvCamera
 {
-    GObject parent_instance;
+    GObject  parent_instance;
 
-    gfloat  x;
-    gfloat  y;
-    gfloat  z;
-    gfloat  target_x;
-    gfloat  target_y;
-    gfloat  target_z;
+    GLfloat  pos[3];
+    GLfloat  target[3];
+    gboolean target_absolute;
 };
 
 G_DEFINE_TYPE (PvCamera, pv_camera, G_TYPE_OBJECT)
@@ -150,6 +147,7 @@ pv_camera_class_init (PvCameraClass *klass)
 void
 pv_camera_init (PvCamera *self)
 {
+   vector_make (self->target, 1, 0, 0);
 }
 
 PvCamera *
@@ -165,9 +163,18 @@ pv_camera_set_position (PvCamera *self,
                         gfloat    z)
 {
     g_return_if_fail (PV_IS_CAMERA (self));
-    self->x = x;
-    self->y = y;
-    self->z = z;
+    vector_make (self->pos, x, y, z);
+}
+
+void
+pv_camera_set_direction (PvCamera *self,
+                         gfloat    x,
+                         gfloat    y,
+                         gfloat    z)
+{
+    g_return_if_fail (PV_IS_CAMERA (self));
+    vector_make (self->target, x, y, z);
+    self->target_absolute = FALSE;
 }
 
 void
@@ -177,9 +184,8 @@ pv_camera_set_target (PvCamera *self,
                       gfloat    z)
 {
     g_return_if_fail (PV_IS_CAMERA (self));
-    self->target_x = x;
-    self->target_y = y;
-    self->target_z = z;
+    vector_make (self->target, x, y, z);
+    self->target_absolute = TRUE;
 }
 
 void
@@ -194,16 +200,22 @@ pv_camera_transform (PvCamera *self,
     matrix_make_projection (proj, M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f);
 
     GLfloat trans[16];
-    matrix_make_translate (trans, self->x, self->y, self->z);
+    matrix_make_translate (trans, self->pos[0], self->pos[1], self->pos[2]);
     GLfloat rot[16];
-    GLfloat up[3], dir[3];
+    GLfloat up[3];
     vector_make (up, 0, 0, 1);
-    vector_make (dir,
-                 self->target_x - self->x,
-                 self->target_y - self->y,
-                 self->target_z - self->z);
-    vector_normalize (dir);
-    matrix_make_direction (rot, dir, up);
+    if (self->target_absolute) {
+        GLfloat dir[3];
+        vector_make (dir,
+                     self->target[0] - self->pos[0],
+                     self->target[1] - self->pos[1],
+                     self->target[2] - self->pos[2]);
+        vector_normalize (dir);
+        matrix_make_direction (rot, dir, up);
+    }
+    else {
+        matrix_make_direction (rot, self->target, up);
+    }
     GLfloat t[16];
     matrix_mult (t, proj, rot);
     GLfloat mvp[16];

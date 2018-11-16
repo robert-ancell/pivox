@@ -14,19 +14,24 @@
 
 G_DECLARE_FINAL_TYPE (PvCamera, pv_camera, PV, CAMERA, GObject)
 
-PvCamera *pv_camera_new          (void);
+PvCamera *pv_camera_new           (void);
 
-void      pv_camera_set_position (PvCamera *camera,
-                                  gfloat    x,
-                                  gfloat    y,
-                                  gfloat    z);
+void      pv_camera_set_position  (PvCamera *camera,
+                                   gfloat    x,
+                                   gfloat    y,
+                                   gfloat    z);
 
-void      pv_camera_set_target   (PvCamera *camera,
-                                  gfloat    x,
-                                  gfloat    y,
-                                  gfloat    z);
+void      pv_camera_set_direction (PvCamera *camera,
+                                   gfloat    x,
+                                   gfloat    y,
+                                   gfloat    z);
 
-void      pv_camera_transform    (PvCamera *camera,
-                                  gint      width,
-                                  gint      height,
-                                  gint      uniform_location);
+void      pv_camera_set_target    (PvCamera *camera,
+                                   gfloat    x,
+                                   gfloat    y,
+                                   gfloat    z);
+
+void      pv_camera_transform     (PvCamera *camera,
+                                   gint      width,
+                                   gint      height,
+                                   gint      uniform_location);
