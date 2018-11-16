@@ -55,40 +55,33 @@ load_shader (GLenum shader_type, const gchar *filename)
 
 static guint
 add_square (GLfloat *vertices,
-            guint    x,
-            guint    y,
-            guint    z)
+            GLfloat *pos,
+            GLfloat *v0,
+            GLfloat *v1)
 {
-    GLfloat s = 1.0f;
-    GLfloat x0 = x * s;
-    GLfloat y0 = y * s;
-    GLfloat x1 = x0 + s;
-    GLfloat y1 = y0 + s;
-    GLfloat z0 = z * s;
+    vertices[ 0] = pos[0];
+    vertices[ 1] = pos[1];
+    vertices[ 2] = pos[2];
 
-    vertices[ 0] = x0;
-    vertices[ 1] = y0;
-    vertices[ 2] = z0;
+    vertices[ 3] = pos[0] + v0[0];
+    vertices[ 4] = pos[1] + v0[1];
+    vertices[ 5] = pos[2] + v0[2];
 
-    vertices[ 3] = x1;
-    vertices[ 4] = y0;
-    vertices[ 5] = z0;
+    vertices[ 6] = pos[0] + v0[0] + v1[0];
+    vertices[ 7] = pos[1] + v0[1] + v1[1];
+    vertices[ 8] = pos[2] + v0[2] + v1[2];
 
-    vertices[ 6] = x1;
-    vertices[ 7] = y1;
-    vertices[ 8] = z0;
+    vertices[ 9] = pos[0];
+    vertices[10] = pos[1];
+    vertices[11] = pos[2];
 
-    vertices[ 9] = x0;
-    vertices[10] = y0;
-    vertices[11] = z0;
+    vertices[12] = vertices[6];
+    vertices[13] = vertices[7];
+    vertices[14] = vertices[8];
 
-    vertices[12] = x1;
-    vertices[13] = y1;
-    vertices[14] = z0;
-
-    vertices[15] = x0;
-    vertices[16] = y1;
-    vertices[17] = z0;
+    vertices[15] = pos[0] + v1[0];
+    vertices[16] = pos[1] + v1[1];
+    vertices[17] = pos[2] + v1[2];
 
     return 18;
 }
@@ -114,13 +107,20 @@ setup (PvRenderer *self)
                 n_vertices += 18;
         }
     }
+
+    GLfloat north[3] = {  1,  0,  0 };
+    GLfloat east[3]  = {  0,  1,  0 };
+
     GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
     guint offset = 0;
     for (guint x = 0; x < pv_map_get_width (self->map); x++) {
         for (guint y = 0; y < pv_map_get_height (self->map); y++) {
             PvBlockType *type = pv_map_get_block (self->map, x, y, 0);
-            if (type != NULL)
-                offset += add_square (&vertices[offset], x, y, 0);
+            if (type == NULL)
+                continue;
+
+            GLfloat base_pos[3] = { x, y, 0 };
+            offset += add_square (&vertices[offset], base_pos, north, east);
         }
     }
     glBufferData (GL_ARRAY_BUFFER, n_vertices * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
