@@ -23,6 +23,12 @@ struct _PvRenderer
 
     GLuint    program;
     GLuint    vao;
+    GLint     x_offset;
+    GLint     x_size;
+    GLint     y_offset;
+    GLint     y_size;
+    GLint     z_offset;
+    GLint     z_size;
 };
 
 G_DEFINE_TYPE (PvRenderer, pv_renderer, G_TYPE_OBJECT)
@@ -112,6 +118,7 @@ setup (PvRenderer *self)
 
     GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
     guint offset = 0;
+    self->z_offset = offset;
     for (guint x = 0; x < pv_map_get_width (self->map); x++) {
         for (guint y = 0; y < pv_map_get_height (self->map); y++) {
             PvBlockType *type = pv_map_get_block (self->map, x, y, 0);
@@ -122,7 +129,12 @@ setup (PvRenderer *self)
             offset += add_square (&vertices[offset], base_pos, north, east);
         }
     }
-    glBufferData (GL_ARRAY_BUFFER, n_vertices * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
+    self->z_size = offset - self->z_offset;
+    self->x_offset = offset;
+    self->x_size = offset - self->x_offset;
+    self->y_offset = offset;
+    self->y_size = offset - self->y_offset;
+    glBufferData (GL_ARRAY_BUFFER, (self->x_size + self->y_size + self->z_size) * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
     GLuint fragment_shader = load_shader (GL_FRAGMENT_SHADER, "pv-fragment.glsl");
@@ -222,5 +234,9 @@ pv_renderer_render (PvRenderer *self,
     GLint color = glGetUniformLocation (self->program, "Color");
     glBindVertexArray (self->vao);
     glUniform3f (color, 1, 0, 0);
-    glDrawArrays (GL_TRIANGLES, 0, 6 * pv_map_get_width (self->map) * pv_map_get_height (self->map));
+    glDrawArrays (GL_TRIANGLES, self->x_offset / 3, self->x_size / 3);
+    glUniform3f (color, 0, 1, 0);
+    glDrawArrays (GL_TRIANGLES, self->y_offset / 3, self->y_size / 3);
+    glUniform3f (color, 0, 0, 1);
+    glDrawArrays (GL_TRIANGLES, self->z_offset / 3, self->z_size / 3);
 }
