@@ -229,7 +229,9 @@ make_projection_matrix (GLfloat  fov_y,
 }
 
 void
-pv_renderer_render (PvRenderer *self)
+pv_renderer_render (PvRenderer *self,
+                    guint       width,
+                    guint       height)
 {
     g_return_if_fail (PV_IS_RENDERER (self));
 
@@ -238,7 +240,7 @@ pv_renderer_render (PvRenderer *self)
     glUseProgram (self->program);
 
     GLfloat mvp[16];
-    make_projection_matrix (M_PI / 3.0f, 1.0f, 0.1f, 100.0f, mvp);
+    make_projection_matrix (M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f, mvp);
     glUniformMatrix4fv (self->mvp, 1, GL_TRUE, mvp);
 
     glBindVertexArray (self->vao);

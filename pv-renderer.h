@@ -26,4 +26,6 @@ void        pv_renderer_set_camera (PvRenderer *renderer,
                                     gfloat      y,
                                     gfloat      z);
 
-void        pv_renderer_render     (PvRenderer *renderer);
+void        pv_renderer_render     (PvRenderer *renderer,
+                                    guint       width,
+                                    guint       height);

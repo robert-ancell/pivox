@@ -39,8 +39,11 @@ render_cb (PvWindow *self)
     glClearColor (0.5, 0.5, 0.5, 1.0);
     glClear (GL_COLOR_BUFFER_BIT);
 
+    GtkAllocation alloc;
+    gtk_widget_get_allocation (GTK_WIDGET (self->gl_area), &alloc);
+
     if (self->renderer != NULL)
-        pv_renderer_render (self->renderer);
+        pv_renderer_render (self->renderer, alloc.width, alloc.height);
 
     glFlush ();
 
