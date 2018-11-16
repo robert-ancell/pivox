@@ -57,11 +57,11 @@ add_square (GLfloat *vertices,
             guint    z)
 {
     GLfloat s = 1.0f;
-    GLfloat x0 = x * s - 4.0f;
-    GLfloat y0 = y * s - 4.0f;
+    GLfloat x0 = x * s;
+    GLfloat y0 = y * s;
     GLfloat x1 = x0 + s;
     GLfloat y1 = y0 + s;
-    GLfloat z0 = z * s - 4.0f;
+    GLfloat z0 = z * s;
 
     vertices[ 0] = x0;
     vertices[ 1] = y0;
@@ -203,29 +203,68 @@ pv_renderer_set_camera (PvRenderer *self,
 }
 
 static void
-make_projection_matrix (GLfloat  fov_y,
+matrix_make (GLfloat v00, GLfloat v10, GLfloat v20, GLfloat v30,
+             GLfloat v01, GLfloat v11, GLfloat v21, GLfloat v31,
+             GLfloat v02, GLfloat v12, GLfloat v22, GLfloat v32,
+             GLfloat v03, GLfloat v13, GLfloat v23, GLfloat v33,
+             GLfloat *result)
+{
+    result[ 0] = v00;
+    result[ 1] = v10;
+    result[ 2] = v20;
+    result[ 3] = v30;
+    result[ 4] = v01;
+    result[ 5] = v11;
+    result[ 6] = v21;
+    result[ 7] = v31;
+    result[ 8] = v02;
+    result[ 9] = v12;
+    result[10] = v22;
+    result[11] = v32;
+    result[12] = v03;
+    result[13] = v13;
+    result[14] = v23;
+    result[15] = v33;
+}
+
+static void
+matrix_make_projection (GLfloat  fov_y,
                         GLfloat  aspect,
                         GLfloat  z_near,
                         GLfloat  z_far,
-                        GLfloat *m)
+                        GLfloat *result)
 {
     GLfloat f = atanf (fov_y / 2.0f);
-    m[ 0] = f / aspect;
-    m[ 1] = 0;
-    m[ 2] = 0;
-    m[ 3] = 0;
-    m[ 4] = 0;
-    m[ 5] = f;
-    m[ 6] = 0;
-    m[ 7] = 0;
-    m[ 8] = 0;
-    m[ 9] = 0;
-    m[10] = (z_far + z_near) / (z_near - z_far);
-    m[11] = (2.0f * z_far * z_near) / (z_near - z_far);
-    m[12] = 0;
-    m[13] = 0;
-    m[14] = -1.0f;
-    m[15] = 0;
+    GLfloat a = f / aspect;
+    GLfloat b = (z_far + z_near) / (z_near - z_far);
+    GLfloat c = (2.0f * z_far * z_near) / (z_near - z_far);
+    matrix_make ( a,  0,  0,  0,
+                  0,  f,  0,  0,
+                  0,  0,  b,  c,
+                  0,  0, -1,  0,
+                 result);
+}
+
+static void
+matrix_mult (GLfloat *a, GLfloat *b, GLfloat *result)
+{
+    for (int row = 0; row < 4; row++) {
+        for (int col = 0; col < 4; col++) {
+            result[col * 4 + row] = 0;
+            for (int i = 0; i < 4; i++)
+                result[col * 4 + row] += a[col * 4 + i] * b[i * 4 + row];
+        }
+    }
+}
+
+static void
+matrix_translate (GLfloat x, GLfloat y, GLfloat z, GLfloat *result)
+{
+    matrix_make (1, 0, 0, x,
+                 0, 1, 0, y,
+                 0, 0, 1, z,
+                 0, 0, 0, 1,
+                 result);
 }
 
 void
@@ -239,8 +278,13 @@ pv_renderer_render (PvRenderer *self,
 
     glUseProgram (self->program);
 
+    GLfloat proj[16];
+    matrix_make_projection (M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f, proj);
+    GLfloat trans[16];
+    matrix_translate (-self->camera_x, -self->camera_y, -self->camera_z, trans);
     GLfloat mvp[16];
-    make_projection_matrix (M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f, mvp);
+    matrix_mult (proj, trans, mvp);
+
     glUniformMatrix4fv (self->mvp, 1, GL_TRUE, mvp);
 
     glBindVertexArray (self->vao);

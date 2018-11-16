@@ -32,6 +32,7 @@ pv_application_activate (GApplication *app)
 
     g_autoptr(PvRenderer) renderer = pv_renderer_new ();
     pv_renderer_set_map (renderer, self->map);
+    pv_renderer_set_camera (renderer, 4.0, 4.0, 4.0);
     pv_window_set_renderer (window, renderer);
 }
 
