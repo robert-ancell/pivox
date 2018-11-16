@@ -109,7 +109,7 @@ setup (PvRenderer *self)
         for (guint y = 0; y < pv_map_get_height (self->map); y++) {
             PvBlockType *type = pv_map_get_block (self->map, x, y, 0);
             if (type != NULL)
-                n_vertices += 18;
+                n_vertices += 18 * 6;
         }
     }
 
