@@ -115,6 +115,7 @@ setup (PvRenderer *self)
 
     GLfloat north[3] = {  1,  0,  0 };
     GLfloat east[3]  = {  0,  1,  0 };
+    GLfloat up[3]    = {  0,  0,  1 };
 
     GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
     guint offset = 0;
@@ -133,9 +134,34 @@ setup (PvRenderer *self)
     }
     self->z_size = offset - self->z_offset;
     self->x_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
+
+                GLfloat base_pos[3] = { x, y, z };
+                offset += add_square (&vertices[offset], base_pos, east, up);
+            }
+        }
+    }
     self->x_size = offset - self->x_offset;
     self->y_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
+
+                GLfloat base_pos[3] = { x, y, z };
+                offset += add_square (&vertices[offset], base_pos, up, north);
+            }
+        }
+    }
     self->y_size = offset - self->y_offset;
+
     glBufferData (GL_ARRAY_BUFFER, (self->x_size + self->y_size + self->z_size) * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
