@@ -23,6 +23,9 @@ struct _PvRenderer
     GLfloat camera_x;
     GLfloat camera_y;
     GLfloat camera_z;
+    GLfloat target_x;
+    GLfloat target_y;
+    GLfloat target_z;
 
     GLuint  program;
     GLuint  vao;
@@ -194,12 +197,51 @@ void
 pv_renderer_set_camera (PvRenderer *self,
                         gfloat      x,
                         gfloat      y,
-                        gfloat      z)
+                        gfloat      z,
+                        gfloat      target_x,
+                        gfloat      target_y,
+                        gfloat      target_z)
 {
     g_return_if_fail (PV_IS_RENDERER (self));
     self->camera_x = x;
     self->camera_y = y;
     self->camera_z = z;
+    self->target_x = target_x;
+    self->target_y = target_y;
+    self->target_z = target_z;
+}
+
+static void
+vector_make (GLfloat  x,
+             GLfloat  y,
+             GLfloat  z,
+             GLfloat *result)
+{
+    result[0] = x;
+    result[1] = y;
+    result[2] = z;
+}
+
+static void
+vector_normalize (GLfloat *v)
+{
+    GLfloat l = sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    if (l == 0)
+        return;
+    v[0] /= l;
+    v[1] /= l;
+    v[2] /= l;
+}
+
+static void
+vector_cross (GLfloat *a,
+              GLfloat *b,
+              GLfloat *result)
+{
+    vector_make (a[1]*b[2] - a[2]*b[1],
+                 a[2]*b[0] - a[0]*b[2],
+                 a[0]*b[1] - a[1]*b[0],
+                 result);
 }
 
 static void
@@ -246,6 +288,22 @@ matrix_make_projection (GLfloat  fov_y,
 }
 
 static void
+matrix_make_direction (GLfloat *dir,
+                       GLfloat *up,
+                       GLfloat *result)
+{
+    GLfloat s[3];
+    vector_cross (dir, up, s);
+    GLfloat u[3];
+    vector_cross (dir, s, u);
+    matrix_make (   s[0],    s[1],    s[2], 0,
+                    u[0],    u[1],    u[2], 0,
+                 -dir[0], -dir[1], -dir[2], 0,
+                       0,       0,       0, 1,
+                 result);
+}
+
+static void
 matrix_mult (GLfloat *a, GLfloat *b, GLfloat *result)
 {
     for (int row = 0; row < 4; row++) {
@@ -280,10 +338,22 @@ pv_renderer_render (PvRenderer *self,
 
     GLfloat proj[16];
     matrix_make_projection (M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f, proj);
+
     GLfloat trans[16];
-    matrix_translate (-self->camera_x, -self->camera_y, -self->camera_z, trans);
+    matrix_translate (self->camera_x, self->camera_y, self->camera_z, trans);
+    GLfloat rot[16];
+    GLfloat up[3], dir[3];
+    vector_make (0, 0, 1, up);
+    vector_make (self->target_x - self->camera_x,
+                 self->target_y - self->camera_y,
+                 self->target_z - self->camera_z,
+                 dir);
+    vector_normalize (dir);
+    matrix_make_direction (dir, up, rot);
+    GLfloat t[16];
+    matrix_mult (proj, rot, t);
     GLfloat mvp[16];
-    matrix_mult (proj, trans, mvp);
+    matrix_mult (t, trans, mvp);
 
     glUniformMatrix4fv (self->mvp, 1, GL_TRUE, mvp);
 

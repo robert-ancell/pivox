@@ -24,7 +24,10 @@ void        pv_renderer_set_map    (PvRenderer *renderer,
 void        pv_renderer_set_camera (PvRenderer *renderer,
                                     gfloat      x,
                                     gfloat      y,
-                                    gfloat      z);
+                                    gfloat      z,
+                                    gfloat      target_x,
+                                    gfloat      target_y,
+                                    gfloat      target_z);
 
 void        pv_renderer_render     (PvRenderer *renderer,
                                     guint       width,
