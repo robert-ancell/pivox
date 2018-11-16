@@ -12,11 +12,11 @@
 
 struct _PvMap
 {
-    GObject   parent_instance;
+    GObject    parent_instance;
 
-    guint     width;
-    guint     height;
-    guint     depth;
+    guint      width;
+    guint      height;
+    guint      depth;
     GPtrArray *block_types;
     guint8    *blocks;
 };
