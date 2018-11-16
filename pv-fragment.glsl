@@ -1,6 +1,6 @@
 #version 330
 
-in vec3 Color;
+uniform vec3 Color;
 
 void main ()
 {

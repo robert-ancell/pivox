@@ -219,6 +219,8 @@ pv_renderer_render (PvRenderer *self,
     GLint mvp = glGetUniformLocation (self->program, "MVP");
     pv_camera_transform (self->camera, width, height, mvp);
 
+    GLint color = glGetUniformLocation (self->program, "Color");
     glBindVertexArray (self->vao);
+    glUniform3f (color, 1, 0, 0);
     glDrawArrays (GL_TRIANGLES, 0, 6 * pv_map_get_width (self->map) * pv_map_get_height (self->map));
 }
