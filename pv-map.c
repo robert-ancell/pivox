@@ -65,10 +65,12 @@ pv_map_init (PvMap *self)
     g_ptr_array_add (self->block_types, NULL); /* air */
     g_autoptr(PvBlockType) ground_type = pv_block_type_new ("ground");
     g_ptr_array_add (self->block_types, g_object_ref (ground_type));
-    for (guint x = 0; x < self->width; x++) {
-        for (guint y = 0; y < self->height; y++) {
-            if ((x + y) % 2 == 1)
-                self->blocks[y * self->width + x] = 1;
+    for (guint z = 0; z < self->depth; z++) {
+       for (guint y = 0; y < self->height; y++) {
+           for (guint x = 0; x < self->width; x++) {
+                if ((x + y) % 2 == 1)
+                    self->blocks[(z * self->height + y) * self->width + x] = 1;
+            }
         }
     }
 }
