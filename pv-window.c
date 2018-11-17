@@ -85,6 +85,10 @@ key_event_cb (PvWindow    *self,
         else
             self->move[2] = 0;
         break;
+    case GDK_KEY_Escape:
+        if (event->type == GDK_KEY_RELEASE)
+            gtk_widget_destroy (GTK_WIDGET (self));
+        break;
     }
 
     if (old_move[0] != self->move[0] || old_move[1] != self->move[1] || old_move[2] != self->move[2])
