@@ -18,6 +18,8 @@
         <signal name="render" handler="render_cb" object="PvWindow" swapped="yes"/>
         <signal name="key-press-event" handler="key_event_cb" object="PvWindow" swapped="yes"/>
         <signal name="key-release-event" handler="key_event_cb" object="PvWindow" swapped="yes"/>
+        <signal name="motion-notify-event" handler="motion_notify_event_cb" object="PvWindow" swapped="yes"/>
+        <signal name="leave-notify-event" handler="leave_notify_event_cb" object="PvWindow" swapped="yes"/>
       </object>
     </child>
   </template>

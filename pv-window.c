@@ -20,13 +20,51 @@ struct _PvWindow
 
     PvRenderer *renderer;
     GLfloat     move[3];
+
+    gdouble     pointer_x;
+    gdouble     pointer_y;
 };
 
 G_DEFINE_TYPE (PvWindow, pv_window, GTK_TYPE_WINDOW)
 
 static void
+grab_pointer (PvWindow *self)
+{
+    GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (self->gl_area));
+    GdkSeat *seat = gdk_display_get_default_seat (display);
+    g_autoptr(GdkCursor) cursor = gdk_cursor_new_for_display (display, GDK_BLANK_CURSOR);
+    GdkGrabStatus result = gdk_seat_grab (seat,
+                                          gtk_widget_get_window (GTK_WIDGET (self->gl_area)),
+                                          GDK_SEAT_CAPABILITY_POINTER,
+                                          TRUE,
+                                          cursor,
+                                          NULL,
+                                          NULL, NULL);
+    if (result != GDK_GRAB_SUCCESS)
+       g_warning ("Failed to grab pointer");
+}
+
+static void
+warp_pointer (PvWindow *self)
+{
+    GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (self->gl_area));
+    GdkSeat *seat = gdk_display_get_default_seat (display);
+    GdkWindow *window = gtk_widget_get_window (GTK_WIDGET (self->gl_area));
+    gint x, y;
+    gdk_window_get_position (window, &x, &y);
+    gdk_device_warp (gdk_seat_get_pointer (seat), gtk_widget_get_screen (GTK_WIDGET (self->gl_area)),
+                     x + gdk_window_get_width (window) / 2,
+                     y + gdk_window_get_height (window) / 2);
+}
+
+static void
 realize_cb (PvWindow *self)
 {
+    GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (self->gl_area));
+    g_autoptr(GdkCursor) cursor = gdk_cursor_new_for_display (display, GDK_BLANK_CURSOR);
+    gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (self->gl_area)), cursor);
+
+    warp_pointer (self);
 }
 
 static void
@@ -44,6 +82,9 @@ key_event_cb (PvWindow    *self,
     old_move[2] = self->move[2];
 
     switch (event->keyval) {
+    case GDK_KEY_g:
+        grab_pointer (self);
+        break;
     case GDK_KEY_w:
     case GDK_KEY_Up:
         if (event->type == GDK_KEY_PRESS)
@@ -98,6 +139,31 @@ key_event_cb (PvWindow    *self,
 }
 
 static gboolean
+motion_notify_event_cb (PvWindow       *self,
+                        GdkEventMotion *event)
+{
+    if (event->x == self->pointer_x || event->y == self->pointer_y)
+        return FALSE;
+
+    g_printerr ("%f %f\n", event->x - self->pointer_x, event->y - self->pointer_y);
+    self->pointer_x = event->x;
+    self->pointer_y = event->y;
+
+    warp_pointer (self);
+
+    return FALSE;
+}
+
+static gboolean
+leave_notify_event_cb (PvWindow         *self,
+                       GdkEventCrossing *event)
+{
+    warp_pointer (self);
+
+    return FALSE;
+}
+
+static gboolean
 render_cb (PvWindow *self)
 {
     glClearColor (0.5, 0.5, 0.5, 1.0);
@@ -140,6 +206,8 @@ pv_window_class_init (PvWindowClass *klass)
     gtk_widget_class_bind_template_child (widget_class, PvWindow, gl_area);
 
     gtk_widget_class_bind_template_callback (widget_class, key_event_cb);
+    gtk_widget_class_bind_template_callback (widget_class, motion_notify_event_cb);
+    gtk_widget_class_bind_template_callback (widget_class, leave_notify_event_cb);
     gtk_widget_class_bind_template_callback (widget_class, realize_cb);
     gtk_widget_class_bind_template_callback (widget_class, unrealize_cb);
     gtk_widget_class_bind_template_callback (widget_class, render_cb);
@@ -149,6 +217,8 @@ void
 pv_window_init (PvWindow *self)
 {
     gtk_widget_init_template (GTK_WIDGET (self));
+
+    gtk_widget_add_events (GTK_WIDGET (self->gl_area), GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
 }
 
 PvWindow *
