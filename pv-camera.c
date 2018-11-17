@@ -167,6 +167,18 @@ pv_camera_set_position (PvCamera *self,
 }
 
 void
+pv_camera_get_position (PvCamera *self,
+                        gfloat   *x,
+                        gfloat   *y,
+                        gfloat   *z)
+{
+    g_return_if_fail (PV_IS_CAMERA (self));
+    *x = self->pos[0];
+    *y = self->pos[1];
+    *z = self->pos[2];
+}
+
+void
 pv_camera_set_direction (PvCamera *self,
                          gfloat    x,
                          gfloat    y,

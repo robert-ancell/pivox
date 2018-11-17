@@ -25,6 +25,8 @@ void        pv_renderer_set_map    (PvRenderer *renderer,
 void        pv_renderer_set_camera (PvRenderer *renderer,
                                     PvCamera   *camera);
 
+PvCamera   *pv_renderer_get_camera (PvRenderer *renderer);
+
 void        pv_renderer_render     (PvRenderer *renderer,
                                     guint       width,
                                     guint       height);

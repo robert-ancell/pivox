@@ -254,6 +254,13 @@ pv_renderer_set_camera (PvRenderer *self,
     self->camera = g_object_ref (camera);
 }
 
+PvCamera *
+pv_renderer_get_camera (PvRenderer *self)
+{
+    g_return_val_if_fail (PV_IS_RENDERER (self), NULL);
+    return self->camera;
+}
+
 void
 pv_renderer_render (PvRenderer *self,
                     guint       width,

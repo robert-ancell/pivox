@@ -19,8 +19,8 @@ struct _PvWindow
     GtkGLArea  *gl_area;
 
     PvRenderer *renderer;
-    GLfloat     move[3];
 
+    GLfloat     move[3];
     gdouble     pointer_x;
     gdouble     pointer_y;
 };
@@ -132,8 +132,13 @@ key_event_cb (PvWindow    *self,
         break;
     }
 
-    if (old_move[0] != self->move[0] || old_move[1] != self->move[1] || old_move[2] != self->move[2])
-        g_printerr ("%.0f %.0f %.0f\n", self->move[0], self->move[1], self->move[2]);
+    if (old_move[0] != self->move[0] || old_move[1] != self->move[1] || old_move[2] != self->move[2]) {
+        PvCamera *camera = pv_renderer_get_camera (self->renderer);
+        gfloat x, y, z;
+        pv_camera_get_position (camera, &x, &y, &z);
+        pv_camera_set_position (camera, x + self->move[0], y + self->move[1], z + self->move[2]);
+        gtk_widget_queue_draw (GTK_WIDGET (self->gl_area));
+    }
 
     return FALSE;
 }
