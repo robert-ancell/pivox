@@ -19,6 +19,7 @@ struct _PvWindow
     GtkGLArea  *gl_area;
 
     PvRenderer *renderer;
+    GLfloat     move[3];
 };
 
 G_DEFINE_TYPE (PvWindow, pv_window, GTK_TYPE_WINDOW)
@@ -31,6 +32,65 @@ realize_cb (PvWindow *self)
 static void
 unrealize_cb (PvWindow *self)
 {
+}
+
+static gboolean
+key_event_cb (PvWindow    *self,
+              GdkEventKey *event)
+{
+    GLfloat old_move[3];
+    old_move[0] = self->move[0];
+    old_move[1] = self->move[1];
+    old_move[2] = self->move[2];
+
+    switch (event->keyval) {
+    case GDK_KEY_w:
+    case GDK_KEY_Up:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[0] = 1;
+        else
+            self->move[0] = 0;
+        break;
+    case GDK_KEY_a:
+    case GDK_KEY_Left:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[1] = -1;
+        else
+            self->move[1] = 0;
+        break;
+    case GDK_KEY_s:
+    case GDK_KEY_Down:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[0] = -1;
+        else
+            self->move[0] = 0;
+        break;
+    case GDK_KEY_d:
+    case GDK_KEY_Right:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[1] = 1;
+        else
+            self->move[1] = 0;
+        break;
+    case GDK_KEY_space:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[2] = 1;
+        else
+            self->move[2] = 0;
+        break;
+    case GDK_KEY_Control_L:
+    case GDK_KEY_Control_R:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[2] = -1;
+        else
+            self->move[2] = 0;
+        break;
+    }
+
+    if (old_move[0] != self->move[0] || old_move[1] != self->move[1] || old_move[2] != self->move[2])
+        g_printerr ("%.0f %.0f %.0f\n", self->move[0], self->move[1], self->move[2]);
+
+    return FALSE;
 }
 
 static gboolean
@@ -75,6 +135,7 @@ pv_window_class_init (PvWindowClass *klass)
 
     gtk_widget_class_bind_template_child (widget_class, PvWindow, gl_area);
 
+    gtk_widget_class_bind_template_callback (widget_class, key_event_cb);
     gtk_widget_class_bind_template_callback (widget_class, realize_cb);
     gtk_widget_class_bind_template_callback (widget_class, unrealize_cb);
     gtk_widget_class_bind_template_callback (widget_class, render_cb);

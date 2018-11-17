@@ -12,9 +12,12 @@
       <object class="GtkGLArea" id="gl_area">
         <property name="visible">True</property>
         <property name="has-depth-buffer">True</property>
+        <property name="can-focus">True</property>
         <signal name="realize" handler="realize_cb" object="PvWindow" swapped="yes"/>
         <signal name="unrealize" handler="unrealize_cb" object="PvWindow" swapped="yes"/>
-        <signal name="render" handler="render_cb" object="PvWindow" swapped="yes"/>        
+        <signal name="render" handler="render_cb" object="PvWindow" swapped="yes"/>
+        <signal name="key-press-event" handler="key_event_cb" object="PvWindow" swapped="yes"/>
+        <signal name="key-release-event" handler="key_event_cb" object="PvWindow" swapped="yes"/>
       </object>
     </child>
   </template>
