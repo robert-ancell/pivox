@@ -36,6 +36,15 @@ vector_make (GLfloat *v,
 }
 
 static void
+vector_copy (GLfloat *v,
+             GLfloat *a)
+{
+    v[0] = a[0];
+    v[1] = a[1];
+    v[2] = a[2];
+}
+
+static void
 vector_normalize (GLfloat *v)
 {
     GLfloat l = sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
@@ -139,6 +148,22 @@ matrix_make_translate (GLfloat *m,
                  0, 0, 0, 1);
 }
 
+static void
+get_direction (PvCamera *self,
+               GLfloat  *dir)
+{
+    if (self->target_absolute) {
+        vector_make (dir,
+                     self->target[0] - self->pos[0],
+                     self->target[1] - self->pos[1],
+                     self->target[2] - self->pos[2]);
+        vector_normalize (dir);
+    }
+    else {
+        vector_copy (dir, self->target);
+    }
+}
+
 void
 pv_camera_class_init (PvCameraClass *klass)
 {
@@ -190,6 +215,20 @@ pv_camera_set_direction (PvCamera *self,
 }
 
 void
+pv_camera_get_direction (PvCamera *self,
+                         gfloat   *x,
+                         gfloat   *y,
+                         gfloat   *z)
+{
+    g_return_if_fail (PV_IS_CAMERA (self));
+    GLfloat dir[3];
+    get_direction (self, dir);
+    *x = dir[0];
+    *y = dir[1];
+    *z = dir[2];
+}
+
+void
 pv_camera_set_target (PvCamera *self,
                       gfloat    x,
                       gfloat    y,
@@ -216,18 +255,9 @@ pv_camera_transform (PvCamera *self,
     GLfloat rot[16];
     GLfloat up[3];
     vector_make (up, 0, 0, 1);
-    if (self->target_absolute) {
-        GLfloat dir[3];
-        vector_make (dir,
-                     self->target[0] - self->pos[0],
-                     self->target[1] - self->pos[1],
-                     self->target[2] - self->pos[2]);
-        vector_normalize (dir);
-        matrix_make_direction (rot, dir, up);
-    }
-    else {
-        matrix_make_direction (rot, self->target, up);
-    }
+    GLfloat dir[3];
+    get_direction (self, dir);
+    matrix_make_direction (rot, dir, up);
     GLfloat t[16];
     matrix_mult (t, proj, rot);
     GLfloat mvp[16];

@@ -31,6 +31,11 @@ void      pv_camera_set_direction (PvCamera *camera,
                                    gfloat    y,
                                    gfloat    z);
 
+void      pv_camera_get_direction (PvCamera *camera,
+                                   gfloat   *x,
+                                   gfloat   *y,
+                                   gfloat   *z);
+
 void      pv_camera_set_target    (PvCamera *camera,
                                    gfloat    x,
                                    gfloat    y,
