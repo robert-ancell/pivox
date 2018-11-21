@@ -33,6 +33,19 @@ id_to_block_type (PvMap *self,
     return g_ptr_array_index (self->block_types, id);
 }
 
+static PvBlockType *
+name_to_block_type (PvMap       *self,
+                    const gchar *name)
+{
+    for (guint i = 0; i < self->block_types->len; i++) {
+        PvBlockType *block_type = g_ptr_array_index (self->block_types, i);
+        if (block_type != NULL && g_strcmp0 (pv_block_type_get_name (block_type), name) == 0)
+            return block_type;
+    }
+
+    return NULL;
+}
+
 static void
 pv_map_dispose (GObject *object)
 {
@@ -56,29 +69,25 @@ void
 pv_map_init (PvMap *self)
 {
     self->block_types = g_ptr_array_new_with_free_func (g_object_unref);
-
-    self->width = 8;
-    self->height = 8;
-    self->depth = 1;
-    self->blocks = g_malloc0_n (self->width * self->height * self->depth, 1);
-
     g_ptr_array_add (self->block_types, NULL); /* air */
     g_autoptr(PvBlockType) ground_type = pv_block_type_new ("ground");
     g_ptr_array_add (self->block_types, g_object_ref (ground_type));
-    for (guint z = 0; z < self->depth; z++) {
-       for (guint y = 0; y < self->height; y++) {
-           for (guint x = 0; x < self->width; x++) {
-                if ((x + y) % 2 == 1)
-                    self->blocks[(z * self->height + y) * self->width + x] = 1;
-            }
-        }
-    }
 }
 
 PvMap *
-pv_map_new (void)
+pv_map_new (guint width,
+            guint height,
+            guint depth)
 {
-    return g_object_new (pv_map_get_type (), NULL);
+    PvMap *self;
+
+    self = g_object_new (pv_map_get_type (), NULL);
+    self->width = width;
+    self->height = height;
+    self->depth = depth;
+    self->blocks = g_malloc0_n (self->width * self->height * self->depth, 1);
+
+    return self;
 }
 
 guint
@@ -100,6 +109,29 @@ pv_map_get_depth (PvMap *self)
 {
     g_return_val_if_fail (PV_IS_MAP (self), 0);
     return self->depth;
+}
+
+PvBlockType *
+pv_map_get_block_type (PvMap       *self,
+                       const gchar *name)
+{
+    g_return_val_if_fail (PV_IS_MAP (self), NULL);
+    return name_to_block_type (self, name);
+}
+
+void
+pv_map_set_block (PvMap       *self,
+                  guint        x,
+                  guint        y,
+                  guint        z,
+                  PvBlockType *type)
+{
+    g_return_if_fail (PV_IS_MAP (self));
+
+    if (x >= self->width || y >= self->height || z >= self->depth)
+        return;
+
+    self->blocks[(z * self->height + y) * self->width + x] = type != NULL ? 1 : 0; // FIXME
 }
 
 PvBlockType *

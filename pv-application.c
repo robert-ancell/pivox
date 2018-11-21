@@ -10,6 +10,7 @@
 
 #include "pv-application.h"
 #include "pv-map.h"
+#include "pv-vox-loader.h"
 #include "pv-window.h"
 
 struct _PvApplication
@@ -60,7 +61,17 @@ pv_application_class_init (PvApplicationClass *klass)
 void
 pv_application_init (PvApplication *self)
 {
-    self->map = pv_map_new ();
+    g_autoptr(GError) error = NULL;
+
+    g_autoptr(GFile) file = g_file_new_for_uri ("resource:///com/example/pivox/map.vox");
+    g_autoptr(PvVoxLoader) loader = pv_vox_loader_new (file);
+    PvMap *map = pv_vox_loader_decode (loader, NULL, &error);
+    if (map == NULL) {
+       g_printerr ("Failed to load map: %s", error->message);
+    }
+    else
+       self->map = g_object_ref (map);
+
     self->camera = pv_camera_new ();
     pv_camera_set_position (self->camera, 0.0, 0.0, 3.0);
     pv_camera_set_target (self->camera, pv_map_get_width (self->map) / 2.0, pv_map_get_height (self->map) / 2.0, 0.0);

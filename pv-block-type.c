@@ -55,6 +55,13 @@ pv_block_type_new (const gchar *name)
     return self;
 }
 
+const gchar *
+pv_block_type_get_name (PvBlockType *self)
+{
+    g_return_val_if_fail (PV_IS_BLOCK_TYPE (self), NULL);
+    return self->name;
+}
+
 void
 pv_block_type_set_color (PvBlockType *self,
                          gdouble      r,

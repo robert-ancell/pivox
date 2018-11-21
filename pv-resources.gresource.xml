@@ -7,4 +7,7 @@
     <file>pv-fragment.glsl</file>
     <file>pv-vertex.glsl</file>
   </gresource>
+  <gresource prefix="/com/example/pivox">
+    <file>map.vox</file>
+  </gresource>
 </gresources>

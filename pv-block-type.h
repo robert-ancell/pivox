@@ -16,6 +16,8 @@ G_DECLARE_FINAL_TYPE (PvBlockType, pv_block_type, PV, BLOCK_TYPE, GObject)
 
 PvBlockType *pv_block_type_new       (const gchar *name);
 
+const gchar *pv_block_type_get_name  (PvBlockType *type);
+
 void         pv_block_type_set_color (PvBlockType *type,
                                       gdouble      r,
                                       gdouble      g,
