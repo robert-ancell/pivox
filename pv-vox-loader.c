@@ -97,6 +97,13 @@ read_uint (PvVoxLoader *self)
     return value;
 }
 
+static gfloat
+read_float (PvVoxLoader *self)
+{
+    guint32 value = read_uint (self);
+    return *((gfloat *) &value);
+}
+
 static void
 decode_size_chunk (PvVoxLoader *self)
 {
@@ -129,6 +136,32 @@ decode_rgba_chunk (PvVoxLoader *self)
 {
     for (guint32 i = 0; i < 255; i++)
         self->palette[i + 1] = read_uint (self);
+}
+
+static void
+decode_matt_chunk (PvVoxLoader *self)
+{
+    guint32 id = read_uint (self);
+    guint32 type = read_uint (self);
+    gfloat weight = read_float (self);
+    guint32 property_bits = read_uint (self);
+    if (property_bits & 0x00000001)
+         read_float (self);
+    if (property_bits & 0x00000002)
+         read_float (self);
+    if (property_bits & 0x00000004)
+         read_float (self);
+    if (property_bits & 0x00000008)
+         read_float (self);
+    if (property_bits & 0x00000010)
+         read_float (self);
+    if (property_bits & 0x00000020)
+         read_float (self);
+    if (property_bits & 0x00000040)
+         read_float (self);
+    if (property_bits & 0x00000080)
+         ;
+    g_printerr ("%u %u %f\n", id, type, weight);
 }
 
 static void
@@ -211,6 +244,9 @@ pv_vox_loader_decode (PvVoxLoader  *self,
         }
         else if (id == id_to_uint ("RGBA")) {
             decode_rgba_chunk (self);
+        }
+        else if (id == id_to_uint ("MATT")) {
+            decode_matt_chunk (self);
         }
         else
             g_debug ("Unknown MagicaVoxel chunk %s\n", uint_to_id (id));
