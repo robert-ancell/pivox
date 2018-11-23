@@ -23,12 +23,24 @@ struct _PvRenderer
 
     GLuint    program;
     GLuint    vao;
-    GLint     x_offset;
-    GLint     x_size;
-    GLint     y_offset;
-    GLint     y_size;
-    GLint     z_offset;
-    GLint     z_size;
+    GLfloat   north;
+    GLfloat   south;
+    GLfloat   east;
+    GLfloat   west;
+    GLfloat   top;
+    GLfloat   bottom;
+    GLint     north_offset;
+    GLint     north_size;
+    GLint     south_offset;
+    GLint     south_size;
+    GLint     east_offset;
+    GLint     east_size;
+    GLint     west_offset;
+    GLint     west_size;
+    GLint     top_offset;
+    GLint     top_size;
+    GLint     bottom_offset;
+    GLint     bottom_size;
 };
 
 G_DEFINE_TYPE (PvRenderer, pv_renderer, G_TYPE_OBJECT)
@@ -124,7 +136,7 @@ setup (PvRenderer *self)
 
     GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
     guint offset = 0;
-    self->z_offset = offset;
+    self->north_offset = offset;
     for (guint x = 0; x < pv_map_get_width (self->map); x++) {
         for (guint y = 0; y < pv_map_get_height (self->map); y++) {
             for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
@@ -132,48 +144,96 @@ setup (PvRenderer *self)
                 if (type == NULL)
                     continue;
 
-                GLfloat base_pos[3] = { x, y, z };
-                GLfloat top_pos[3] = { x + 1, y + 1, z + 1};
-                offset += add_square (&vertices[offset], base_pos, north, east);
-                offset += add_square (&vertices[offset], top_pos, west, south);
-            }
-        }
-    }
-    self->z_size = offset - self->z_offset;
-    self->x_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
-                    continue;
-
-                GLfloat base_pos[3] = { x, y, z };
-                GLfloat top_pos[3] = { x + 1, y + 1, z + 1};
-                offset += add_square (&vertices[offset], base_pos, east, up);
-                offset += add_square (&vertices[offset], top_pos, down, west);
-            }
-        }
-    }
-    self->x_size = offset - self->x_offset;
-    self->y_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
-                    continue;
-
-                GLfloat base_pos[3] = { x, y, z };
-                GLfloat top_pos[3] = { x + 1, y + 1, z + 1};
-                offset += add_square (&vertices[offset], base_pos, up, north);
+                GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 offset += add_square (&vertices[offset], top_pos, south, down);
+                if (y + 1 > self->north)
+                    self->north = y + 1;
             }
         }
     }
-    self->y_size = offset - self->y_offset;
+    self->north_size = offset - self->north_offset;
+    self->south_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
 
-    glBufferData (GL_ARRAY_BUFFER, (self->x_size + self->y_size + self->z_size) * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
+                GLfloat base_pos[3] = { x, y, z };
+                offset += add_square (&vertices[offset], base_pos, up, north);
+                if (y < self->south)
+                    self->south = y;
+            }
+        }
+    }
+    self->south_size = offset - self->south_offset;
+    self->east_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
+
+                GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
+                offset += add_square (&vertices[offset], top_pos, down, west);
+                if (x > self->east)
+                    self->east = x;
+            }
+        }
+    }
+    self->east_size = offset - self->east_offset;
+    self->west_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
+
+                GLfloat base_pos[3] = { x, y, z };
+                offset += add_square (&vertices[offset], base_pos, east, up);
+                if (x < self->west)
+                    self->west = x;
+            }
+        }
+    }
+    self->west_size = offset - self->west_offset;
+    self->top_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
+
+                GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
+                offset += add_square (&vertices[offset], top_pos, west, south);
+                if (z + 1 > self->top)
+                    self->top = z + 1;
+            }
+        }
+    }
+    self->top_size = offset - self->top_offset;
+    self->bottom_offset = offset;
+    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
+        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
+            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
+                if (type == NULL)
+                    continue;
+
+                GLfloat base_pos[3] = { x, y, z };
+                offset += add_square (&vertices[offset], base_pos, north, east);
+                if (z < self->bottom)
+                    self->bottom = z;
+            }
+        }
+    }
+    self->bottom_size = offset - self->bottom_offset;
+
+    glBufferData (GL_ARRAY_BUFFER, (self->north_size + self->south_size + self->east_size + self->west_size + self->top_size + self->bottom_size) * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
     GLuint fragment_shader = load_shader (GL_FRAGMENT_SHADER, "pv-fragment.glsl");
@@ -279,10 +339,40 @@ pv_renderer_render (PvRenderer *self,
 
     GLint color = glGetUniformLocation (self->program, "Color");
     glBindVertexArray (self->vao);
+
+    GLint n_triangles = 0;
+    GLfloat x, y, z;
+    pv_camera_get_position (self->camera, &x, &y, &z);
+
     glUniform3f (color, 1, 0, 0);
-    glDrawArrays (GL_TRIANGLES, self->x_offset / 3, self->x_size / 3);
+    if (x > self->west) {
+        glDrawArrays (GL_TRIANGLES, self->east_offset / 3, self->east_size / 3);
+        n_triangles += self->east_size;
+    }
+    if (x < self->east) {
+        glDrawArrays (GL_TRIANGLES, self->west_offset / 3, self->west_size / 3);
+        n_triangles += self->west_size;
+    }
+
     glUniform3f (color, 0, 1, 0);
-    glDrawArrays (GL_TRIANGLES, self->y_offset / 3, self->y_size / 3);
+    if (y > self->south) {
+        glDrawArrays (GL_TRIANGLES, self->north_offset / 3, self->north_size / 3);
+        n_triangles += self->north_size;
+    }
+    if (y < self->north) {
+        glDrawArrays (GL_TRIANGLES, self->south_offset / 3, self->south_size / 3);
+        n_triangles += self->south_size;
+    }
+
     glUniform3f (color, 0, 0, 1);
-    glDrawArrays (GL_TRIANGLES, self->z_offset / 3, self->z_size / 3);
+    if (z > self->bottom) {
+        glDrawArrays (GL_TRIANGLES, self->top_offset / 3, self->top_size / 3);
+        n_triangles += self->top_size;
+    }
+    if (z < self->top) {
+        glDrawArrays (GL_TRIANGLES, self->bottom_offset / 3, self->bottom_size / 3);
+        n_triangles += self->bottom_size;
+    }
+
+    g_printerr ("Rendered %d triangles\n", n_triangles);
 }
