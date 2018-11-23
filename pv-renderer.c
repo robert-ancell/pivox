@@ -143,6 +143,8 @@ setup (PvRenderer *self)
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
+                if (pv_map_get_block (self->map, x, y + 1, z) != NULL)
+                    continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 offset += add_square (&vertices[offset], top_pos, south, down);
@@ -158,6 +160,8 @@ setup (PvRenderer *self)
             for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
+                    continue;
+                if (pv_map_get_block (self->map, x, y - 1, z) != NULL)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
@@ -175,6 +179,8 @@ setup (PvRenderer *self)
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
+                if (pv_map_get_block (self->map, x + 1, y, z) != NULL)
+                    continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 offset += add_square (&vertices[offset], top_pos, down, west);
@@ -190,6 +196,8 @@ setup (PvRenderer *self)
             for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
+                    continue;
+                if (pv_map_get_block (self->map, x - 1, y, z) != NULL)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
@@ -207,6 +215,8 @@ setup (PvRenderer *self)
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
+                if (pv_map_get_block (self->map, x, y, z + 1) != NULL)
+                    continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 offset += add_square (&vertices[offset], top_pos, west, south);
@@ -222,6 +232,8 @@ setup (PvRenderer *self)
             for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
+                    continue;
+                if (pv_map_get_block (self->map, x, y, z - 1) != NULL)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
