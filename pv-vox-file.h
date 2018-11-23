@@ -53,10 +53,14 @@ void           pv_vox_file_get_size        (PvVoxFile    *file,
                                             guint32      *size_y,
                                             guint32      *size_z);
 
-guint32        pv_vox_file_get_voxel_count (PvVoxFile    *file);
+guint32        pv_vox_file_get_model_count (PvVoxFile    *file);
+
+guint32        pv_vox_file_get_voxel_count (PvVoxFile    *file,
+                                            guint32       model_index);
 
 void           pv_vox_file_get_voxel       (PvVoxFile    *file,
-                                            guint32       index,
+                                            guint32       model_index,
+                                            guint32       voxel_index,
                                             guint8       *x,
                                             guint8       *y,
                                             guint8       *z,

@@ -386,31 +386,39 @@ pv_vox_file_get_size (PvVoxFile *self,
 }
 
 guint32
-pv_vox_file_get_voxel_count (PvVoxFile *self)
+pv_vox_file_get_model_count (PvVoxFile *self)
 {
     g_return_val_if_fail (PV_IS_VOX_FILE (self), 0);
-    g_return_val_if_fail (self->models->len > 0, 0);
+    return self->models->len;
+}
 
-    VoxModel *model = g_ptr_array_index (self->models, 0);
+guint32
+pv_vox_file_get_voxel_count (PvVoxFile *self,
+                             guint32    model_index)
+{
+    g_return_val_if_fail (PV_IS_VOX_FILE (self), 0);
+    g_return_val_if_fail (model_index < self->models->len, 0);
+
+    VoxModel *model = g_ptr_array_index (self->models, model_index);
     return model->voxels_length;
 }
 
 void
 pv_vox_file_get_voxel (PvVoxFile *self,
-                       guint32    index,
+                       guint32    model_index,
+                       guint32    voxel_index,
                        guint8    *x,
                        guint8    *y,
                        guint8    *z,
                        guint8    *color_index)
 {
     g_return_if_fail (PV_IS_VOX_FILE (self));
-    g_return_if_fail (self->models->len > 0);
+    g_return_if_fail (model_index < self->models->len);
 
-    VoxModel *model = g_ptr_array_index (self->models, 0);
-    if (index >= model->voxels_length)
-        return;
+    VoxModel *model = g_ptr_array_index (self->models, model_index);
+    g_return_if_fail (voxel_index < model->voxels_length);
 
-    guint8 *voxel = model->voxels + index * 4;
+    guint8 *voxel = model->voxels + voxel_index * 4;
     if (x != NULL)
         *x = voxel[0];
     if (y != NULL)

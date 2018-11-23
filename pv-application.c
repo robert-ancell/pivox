@@ -39,11 +39,14 @@ load_map (PvApplication *self)
     pv_vox_file_get_size (vox_file, &size_x, &size_y, &size_z);
     self->map = pv_map_new (size_x, size_y, size_z);
     PvBlockType *ground = pv_map_get_block_type (self->map, "ground");
-    guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file);
-    for (guint32 i = 0; i < voxel_count; i++) {
-        guint8 x, y, z;
-        pv_vox_file_get_voxel (vox_file, i, &x, &y, &z, NULL);
-        pv_map_set_block (self->map, x, y, z, ground);
+    guint32 model_count = pv_vox_file_get_model_count (vox_file);
+    for (guint32 model_index = 0; model_index < model_count; model_index++) {
+        guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file, model_index);
+        for (guint32 i = 0; i < voxel_count; i++) {
+            guint8 x, y, z;
+            pv_vox_file_get_voxel (vox_file, model_index, i, &x, &y, &z, NULL);
+            pv_map_set_block (self->map, x, y, z, ground);
+        }
     }
 }
 
