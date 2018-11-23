@@ -14,16 +14,16 @@
 
 struct _PvVoxFile
 {
-    GObject    parent_instance;
+    GObject       parent_instance;
 
-    GFile     *file;
+    GFile        *file;
 
-    guint8    *data;
-    gsize      data_length;
+    guint8       *data;
+    gsize         data_length;
 
-    GPtrArray *models;
+    GPtrArray    *models;
 
-    guint8    *palette;
+    PvVoxMaterial materials[256];
 };
 
 typedef struct
@@ -148,7 +148,7 @@ read_uint (PvVoxFile *self,
            data[offset + 0];
 }
 
-/*static gfloat
+static gfloat
 read_float (PvVoxFile *self,
             guint8    *data,
             gsize      data_length,
@@ -156,7 +156,7 @@ read_float (PvVoxFile *self,
 {
     guint32 value = read_uint (self, data, data_length, offset);
     return *((gfloat *) &value);
-}*/
+}
 
 static void
 pv_vox_file_dispose (GObject *object)
@@ -182,7 +182,13 @@ void
 pv_vox_file_init (PvVoxFile *self)
 {
     self->models = g_ptr_array_new_with_free_func (g_free);
-    self->palette = default_palette;
+    for (int i = 0; i < 256; i++) {
+        guint8 *color = default_palette + i * 4;
+        self->materials[i].r = color[0];
+        self->materials[i].g = color[1];
+        self->materials[i].b = color[2];
+        self->materials[i].a = color[3];
+    }
 }
 
 PvVoxFile *
@@ -236,21 +242,21 @@ decode_chunks (PvVoxFile *self,
         }
         else if (chunk_id == id_to_uint ("PACK")) {
             // FIXME: Check size >= 4
-            //guint32 n_models = read_uint (self, chunk_start, n_remaining, 0);
+            //guint32 n_models = read_uint (self, chunk_start, chunk_length, 0);
         }
         else if (chunk_id == id_to_uint ("SIZE")) {
             // FIXME: Check size >= 12
 
             VoxModel *model = g_new0 (VoxModel, 1);
-            model->size_x = read_uint (self, chunk_start, n_remaining, 0);
-            model->size_y = read_uint (self, chunk_start, n_remaining, 4);
-            model->size_z = read_uint (self, chunk_start, n_remaining, 8);
+            model->size_x = read_uint (self, chunk_start, chunk_length, 0);
+            model->size_y = read_uint (self, chunk_start, chunk_length, 4);
+            model->size_z = read_uint (self, chunk_start, chunk_length, 8);
             g_ptr_array_add (self->models, model);
         }
         else if (chunk_id == id_to_uint ("XYZI")) {
             // FIXME: Check size >= 4
 
-            guint32 voxels_length = read_uint (self, chunk_start, n_remaining, 0);
+            guint32 voxels_length = read_uint (self, chunk_start, chunk_length, 0);
             if (4 + voxels_length * 4 > chunk_length) {
                 guint32 max_voxels_length = (chunk_length / 4) - 4;
                 g_warning ("XYZI block specified %u voxels but only space for %u", voxels_length, max_voxels_length);
@@ -270,11 +276,55 @@ decode_chunks (PvVoxFile *self,
             }
         }
         else if (chunk_id == id_to_uint ("RGBA")) {
-            // FIXME: Check size == 256
-            self->palette = chunk_start;
+            g_printerr ("RGBA %u\n", chunk_length);
+            for (int offset = 0, index = 1; offset < chunk_length && index < 256; offset += 4, index++) {
+                self->materials[index].r = chunk_start[offset + 0];
+                self->materials[index].g = chunk_start[offset + 1];
+                self->materials[index].b = chunk_start[offset + 2];
+                self->materials[index].a = chunk_start[offset + 3];
+            }
         }
         else if (chunk_id == id_to_uint ("MATT")) {
-            // FIXME
+            // FIXME: Check size >= 16
+            guint32 id = read_uint (self, chunk_start, chunk_length, 0);
+            // FIXME: Check id between 1 and 255
+            PvVoxMaterial null_material;
+            PvVoxMaterial *material = id < 256 ? &self->materials[id] : &null_material;
+            material->type = read_uint (self, chunk_start, chunk_length, 4);
+            material->weight = read_float (self, chunk_start, chunk_length, 8);
+            guint32 property_bits = read_uint (self, chunk_start, chunk_length, 12);
+            gsize property_offset = 0;
+            if (property_bits & 0x00000001) {
+                material->plastic = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000002) {
+                material->roughness = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000004) {
+                material->specular = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000008) {
+                material->ior = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000010) {
+                material->attenuation = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000020) {
+                material->power = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000040) {
+                material->glow = read_float (self, chunk_start, chunk_length, property_offset);
+                property_offset += 4;
+            }
+            if (property_bits & 0x00000080) {
+                material->is_total_power = TRUE;
+            }
         }
         else
             g_debug ("Ignoring unknown MagicaVoxel chunk %s", id_string);
@@ -371,23 +421,10 @@ pv_vox_file_get_voxel (PvVoxFile *self,
         *color_index = voxel[3];
 }
 
-void
-pv_vox_file_get_color (PvVoxFile *self,
-                       guint8     index,
-                       guint8    *r,
-                       guint8    *g,
-                       guint8    *b,
-                       guint8    *a)
+PvVoxMaterial *
+pv_vox_file_get_material (PvVoxFile *self,
+                          guint8     index)
 {
-    g_return_if_fail (PV_IS_VOX_FILE (self));
-
-    guint8 *color = self->palette + index * 4;
-    if (r != NULL)
-        *r = color[0];
-    if (g != NULL)
-        *g = color[1];
-    if (b != NULL)
-        *b = color[2];
-    if (a != NULL)
-        *a = color[3];
+    g_return_val_if_fail (PV_IS_VOX_FILE (self), NULL);
+    return &self->materials[index];
 }

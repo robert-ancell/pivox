@@ -14,29 +14,53 @@
 
 G_DECLARE_FINAL_TYPE (PvVoxFile, pv_vox_file, PV, VOX_FILE, GObject)
 
-PvVoxFile *pv_vox_file_new             (GFile        *file);
+typedef enum 
+{
+    PV_VOX_MATERIAL_TYPE_DIFFUSE  = 0,
+    PV_VOX_MATERIAL_TYPE_METAL    = 1,
+    PV_VOX_MATERIAL_TYPE_GLASS    = 2,
+    PV_VOX_MATERIAL_TYPE_EMISSIVE = 3
+} PvVoxMaterialType;
 
-gboolean   pv_vox_file_decode          (PvVoxFile    *file,
-                                        GCancellable *cancellable,
-                                        GError      **error);
+typedef struct
+{
+   guint8 r;
+   guint8 g;
+   guint8 b;
+   guint8 a;
 
-void       pv_vox_file_get_size        (PvVoxFile    *file,
-                                        guint32      *size_x,
-                                        guint32      *size_y,
-                                        guint32      *size_z);
+   PvVoxMaterialType type;
 
-guint32    pv_vox_file_get_voxel_count (PvVoxFile    *file);
+   gfloat weight;
+   gfloat plastic;
+   gfloat roughness;
+   gfloat specular;
+   gfloat ior;
+   gfloat attenuation;
+   gfloat power;
+   gfloat glow;
+   gboolean is_total_power;
+} PvVoxMaterial;
 
-void       pv_vox_file_get_voxel       (PvVoxFile    *file,
-                                        guint32       index,
-                                        guint8       *x,
-                                        guint8       *y,
-                                        guint8       *z,
-                                        guint8       *color_index);
+PvVoxFile     *pv_vox_file_new             (GFile        *file);
 
-void       pv_vox_file_get_color       (PvVoxFile    *file,
-                                        guint8        index,
-                                        guint8       *r,
-                                        guint8       *g,
-                                        guint8       *b,
-                                        guint8       *a);
+gboolean       pv_vox_file_decode          (PvVoxFile    *file,
+                                            GCancellable *cancellable,
+                                            GError      **error);
+
+void           pv_vox_file_get_size        (PvVoxFile    *file,
+                                            guint32      *size_x,
+                                            guint32      *size_y,
+                                            guint32      *size_z);
+
+guint32        pv_vox_file_get_voxel_count (PvVoxFile    *file);
+
+void           pv_vox_file_get_voxel       (PvVoxFile    *file,
+                                            guint32       index,
+                                            guint8       *x,
+                                            guint8       *y,
+                                            guint8       *z,
+                                            guint8       *color_index);
+
+PvVoxMaterial *pv_vox_file_get_material    (PvVoxFile    *file,
+                                            guint8        index);
