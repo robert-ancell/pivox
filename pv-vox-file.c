@@ -197,6 +197,99 @@ pv_vox_file_new (GFile *file)
     return self;
 }
 
+static gboolean
+decode_chunks (PvVoxFile *self,
+               guint8    *data,
+               gsize      data_length,
+               GError   **error)
+{
+    gsize offset = 0;
+    while (offset < data_length) {
+        gsize n_remaining = data_length - offset;
+
+        /* Check enough space for header */
+        guint8 *chunk_header = data + offset;
+        gsize chunk_header_length = 12;
+        if (n_remaining < chunk_header_length) {
+            g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Not enough space for chunk header");
+            return FALSE;
+        }
+
+        /* Read header, check enough space for data */
+        guint32 chunk_id = read_uint (self, chunk_header, n_remaining, 0);
+        guint32 chunk_length = read_uint (self, chunk_header, n_remaining, 4);
+        guint32 child_chunks_length = read_uint (self, chunk_header, n_remaining, 8);
+
+        g_autofree gchar *id_string = uint_to_id (chunk_id);
+
+        gsize n_required = chunk_header_length + chunk_length + child_chunks_length;
+        if (n_required > n_remaining) {
+            g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                         "Chunk %s requires %zi octets, but only %zi available", id_string, n_required, n_remaining);
+            return FALSE;
+        }
+
+        guint8 *chunk_start = data + offset + chunk_header_length;
+        guint8 *child_chunks_start = data + offset + chunk_header_length + chunk_length;
+
+        if (chunk_id == id_to_uint ("MAIN")) {
+        }
+        else if (chunk_id == id_to_uint ("PACK")) {
+            // FIXME: Check size >= 4
+            //guint32 n_models = read_uint (self, chunk_start, n_remaining, 0);
+        }
+        else if (chunk_id == id_to_uint ("SIZE")) {
+            // FIXME: Check size >= 12
+
+            VoxModel *model = g_new0 (VoxModel, 1);
+            model->size_x = read_uint (self, chunk_start, n_remaining, 0);
+            model->size_y = read_uint (self, chunk_start, n_remaining, 4);
+            model->size_z = read_uint (self, chunk_start, n_remaining, 8);
+            g_ptr_array_add (self->models, model);
+        }
+        else if (chunk_id == id_to_uint ("XYZI")) {
+            // FIXME: Check size >= 4
+
+            guint32 voxels_length = read_uint (self, chunk_start, n_remaining, 0);
+            if (4 + voxels_length * 4 > chunk_length) {
+                guint32 max_voxels_length = (chunk_length / 4) - 4;
+                g_warning ("XYZI block specified %u voxels but only space for %u", voxels_length, max_voxels_length);
+                voxels_length = max_voxels_length;
+            }
+
+            VoxModel *model = self->models->len > 0 ? g_ptr_array_index (self->models, self->models->len - 1) : NULL;
+            if (model == NULL) {
+                g_warning ("Ignoring XYZI block without preceeding SIZE block");
+            }
+            else if (model->voxels != NULL) {
+                g_warning ("Ignoring duplicate XYZI block");
+            }
+            else {
+                model->voxels = chunk_start + 4;
+                model->voxels_length = voxels_length;
+            }
+        }
+        else if (chunk_id == id_to_uint ("RGBA")) {
+            // FIXME: Check size == 256
+            self->palette = chunk_start;
+        }
+        else if (chunk_id == id_to_uint ("MATT")) {
+            // FIXME
+        }
+        else
+            g_debug ("Ignoring unknown MagicaVoxel chunk %s", id_string);
+
+        /* Decode child chunks */
+        if (child_chunks_length > 0)
+            if (!decode_chunks (self, child_chunks_start, child_chunks_length, error))
+                return FALSE;
+
+        offset += chunk_header_length + chunk_length + child_chunks_length;
+    }
+
+    return TRUE;
+}
+
 gboolean
 pv_vox_file_decode (PvVoxFile    *self,
                     GCancellable *cancellable,
@@ -220,91 +313,7 @@ pv_vox_file_decode (PvVoxFile    *self,
     guint32 version = read_uint (self, self->data, self->data_length, 4);
     g_printerr ("version: %u\n", version);
 
-    // FIXME: Decode as normal chunk
-    id = read_uint (self, self->data, self->data_length, 8);
-    if (id != id_to_uint ("MAIN")) {
-        g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED, "No MAIN chunk found");
-        return FALSE;
-    }
-
-    gsize offset = 20;
-    VoxModel *model = NULL;
-    while (offset < self->data_length) {
-        gsize n_remaining = self->data_length - offset;
-
-        /* Check enough space for header */
-        guint8 *chunk_header = self->data + offset;
-        gsize chunk_header_length = 12;
-        if (n_remaining < chunk_header_length) {
-            g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Not enough space for chunk header");
-            return FALSE;
-        }
-
-        /* Read header, check enough space for data */
-        guint32 chunk_id = read_uint (self, chunk_header, n_remaining, 0);
-        guint32 chunk_length = read_uint (self, chunk_header, n_remaining, 4);
-        guint32 child_chunks_length = read_uint (self, chunk_header, n_remaining, 8);
-
-        g_autofree gchar *id_string = uint_to_id (chunk_id);
-
-        gsize n_required = chunk_header_length + chunk_length + child_chunks_length;
-        if (n_required > n_remaining) {
-            g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                         "Chunk %s requires %zi octets, but only %zi available", id_string, n_required, n_remaining);
-            return FALSE;
-        }
-
-        guint8 *chunk_start = self->data + offset + chunk_header_length;
-        //guint8 *child_chunks_start = self->data + offset + chunk_header_length + chunk_length;
-
-        if (chunk_id == id_to_uint ("PACK")) {
-            // FIXME: Check size >= 4
-            //guint32 n_models = read_uint (self, chunk_start, n_remaining, 0);
-        }
-        else if (chunk_id == id_to_uint ("SIZE")) {
-            // FIXME: Check size >= 12
-
-            model = g_new0 (VoxModel, 1);
-            model->size_x = read_uint (self, chunk_start, n_remaining, 0);
-            model->size_y = read_uint (self, chunk_start, n_remaining, 4);
-            model->size_z = read_uint (self, chunk_start, n_remaining, 8);
-            g_ptr_array_add (self->models, model);
-        }
-        else if (chunk_id == id_to_uint ("XYZI")) {
-            // FIXME: Check size >= 4
-
-            guint32 voxels_length = read_uint (self, chunk_start, n_remaining, 0);
-            if (4 + voxels_length * 4 > chunk_length) {
-                guint32 max_voxels_length = (chunk_length / 4) - 4;
-                g_warning ("XYZI block specified %u voxels but only space for %u", voxels_length, max_voxels_length);
-                voxels_length = max_voxels_length;
-            }
-
-            if (model == NULL) {
-                g_warning ("Ignoring XYZI block without preceeding SIZE block");
-            }
-            else if (model->voxels != NULL) {
-                g_warning ("Ignoring duplicate XYZI block");
-            }
-            else {
-                model->voxels = chunk_start + 4;
-                model->voxels_length = voxels_length;
-            }
-        }
-        else if (chunk_id == id_to_uint ("RGBA")) {
-            // FIXME: Check size == 256
-            self->palette = chunk_start;
-        }
-        else if (chunk_id == id_to_uint ("MATT")) {
-            // FIXME
-        }
-        else
-            g_debug ("Ignoring unknown MagicaVoxel chunk %s", id_string);
-
-        offset += chunk_header_length + chunk_length + child_chunks_length;
-    }
-
-    return TRUE;
+    return decode_chunks (self, self->data + 8, self->data_length - 8, error);
 }
 
 void
