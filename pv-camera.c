@@ -198,9 +198,12 @@ pv_camera_get_position (PvCamera *self,
                         gfloat   *z)
 {
     g_return_if_fail (PV_IS_CAMERA (self));
-    *x = self->pos[0];
-    *y = self->pos[1];
-    *z = self->pos[2];
+    if (x != NULL)
+        *x = self->pos[0];
+    if (y != NULL)
+        *y = self->pos[1];
+    if (z != NULL)
+        *z = self->pos[2];
 }
 
 void
@@ -223,9 +226,12 @@ pv_camera_get_direction (PvCamera *self,
     g_return_if_fail (PV_IS_CAMERA (self));
     GLfloat dir[3];
     get_direction (self, dir);
-    *x = dir[0];
-    *y = dir[1];
-    *z = dir[2];
+    if (x != NULL)
+        *x = dir[0];
+    if (y != NULL)
+        *y = dir[1];
+    if (z != NULL)
+        *z = dir[2];
 }
 
 void
