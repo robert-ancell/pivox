@@ -88,30 +88,30 @@ key_event_cb (PvWindow    *self,
     case GDK_KEY_w:
     case GDK_KEY_Up:
         if (event->type == GDK_KEY_PRESS)
-            self->move[0] = 1;
-        else
-            self->move[0] = 0;
-        break;
-    case GDK_KEY_a:
-    case GDK_KEY_Left:
-        if (event->type == GDK_KEY_PRESS)
-            self->move[1] = -1;
+            self->move[1] = 1;
         else
             self->move[1] = 0;
         break;
-    case GDK_KEY_s:
-    case GDK_KEY_Down:
+    case GDK_KEY_a:
+    case GDK_KEY_Left:
         if (event->type == GDK_KEY_PRESS)
             self->move[0] = -1;
         else
             self->move[0] = 0;
         break;
+    case GDK_KEY_s:
+    case GDK_KEY_Down:
+        if (event->type == GDK_KEY_PRESS)
+            self->move[1] = -1;
+        else
+            self->move[1] = 0;
+        break;
     case GDK_KEY_d:
     case GDK_KEY_Right:
         if (event->type == GDK_KEY_PRESS)
-            self->move[1] = 1;
+            self->move[0] = 1;
         else
-            self->move[1] = 0;
+            self->move[0] = 0;
         break;
     case GDK_KEY_space:
         if (event->type == GDK_KEY_PRESS)
