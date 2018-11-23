@@ -117,7 +117,7 @@ matrix_make_direction (GLfloat *m,
     GLfloat s[3];
     vector_cross (s, dir, up);
     GLfloat u[3];
-    vector_cross (u, dir, s);
+    vector_cross (u, s, dir);
     matrix_make (m,
                     s[0],    s[1],    s[2], 0,
                     u[0],    u[1],    u[2], 0,
@@ -251,7 +251,7 @@ pv_camera_transform (PvCamera *self,
     matrix_make_projection (proj, M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f);
 
     GLfloat trans[16];
-    matrix_make_translate (trans, self->pos[0], self->pos[1], self->pos[2]);
+    matrix_make_translate (trans, -self->pos[0], -self->pos[1], -self->pos[2]);
     GLfloat rot[16];
     GLfloat up[3];
     vector_make (up, 0, 0, 1);
