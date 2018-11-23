@@ -10,7 +10,7 @@
 
 #include "pv-application.h"
 #include "pv-map.h"
-#include "pv-vox-loader.h"
+#include "pv-vox-file.h"
 #include "pv-window.h"
 
 struct _PvApplication
@@ -22,6 +22,30 @@ struct _PvApplication
 };
 
 G_DEFINE_TYPE (PvApplication, pv_application, GTK_TYPE_APPLICATION)
+
+static void
+load_map (PvApplication *self)
+{
+    g_autoptr(GError) error = NULL;
+
+    g_autoptr(GFile) file = g_file_new_for_uri ("resource:///com/example/pivox/map.vox");
+    g_autoptr(PvVoxFile) vox_file = pv_vox_file_new (file);
+    if (!pv_vox_file_decode (vox_file, NULL, &error)) {
+       g_printerr ("Failed to load map: %s", error->message);
+       return;
+    }
+
+    guint32 size_x, size_y, size_z;
+    pv_vox_file_get_size (vox_file, &size_x, &size_y, &size_z);
+    self->map = pv_map_new (size_x, size_y, size_z);
+    PvBlockType *ground = pv_map_get_block_type (self->map, "ground");
+    guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file);
+    for (guint32 i = 0; i < voxel_count; i++) {
+        guint8 x, y, z;
+        pv_vox_file_get_voxel (vox_file, i, &x, &y, &z, NULL);
+        pv_map_set_block (self->map, x, y, z, ground);
+    }
+}
 
 static void
 pv_application_activate (GApplication *app)
@@ -61,16 +85,7 @@ pv_application_class_init (PvApplicationClass *klass)
 void
 pv_application_init (PvApplication *self)
 {
-    g_autoptr(GError) error = NULL;
-
-    g_autoptr(GFile) file = g_file_new_for_uri ("resource:///com/example/pivox/map.vox");
-    g_autoptr(PvVoxLoader) loader = pv_vox_loader_new (file);
-    PvMap *map = pv_vox_loader_decode (loader, NULL, &error);
-    if (map == NULL) {
-       g_printerr ("Failed to load map: %s", error->message);
-    }
-    else
-       self->map = g_object_ref (map);
+    load_map (self);
 
     self->camera = pv_camera_new ();
     pv_camera_set_position (self->camera, 0.0, 0.0, 3.0);
