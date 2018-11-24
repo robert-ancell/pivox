@@ -116,13 +116,17 @@ setup (PvRenderer *self)
     glGenBuffers (1, &buffer);
     glBindBuffer (GL_ARRAY_BUFFER, buffer);
 
+    gsize width = pv_map_get_width (self->map);
+    gsize height = pv_map_get_height (self->map);
+    gsize depth = pv_map_get_depth (self->map);
+
     guint n_vertices = 0;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int z = 0; z < depth; z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type != NULL)
-                    n_vertices += 18 * 6;
+                    n_vertices += 18 * 6; // FIXME: Not all sides used
             }
         }
     }
@@ -134,12 +138,14 @@ setup (PvRenderer *self)
     GLfloat up[3]    = {  0,  0,  1 };
     GLfloat down[3]  = {  0,  0, -1 };
 
+    /* Calculate triangles looking on each side.
+     * Order from nearest to furtherest (so later triangles get rejected in the depth buffer) */
     GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
     guint offset = 0;
     self->north_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = 0; x < width; x++) {
+        for (int y = height; y >= 0; y--) {
+            for (int z = 0; z < depth; z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
@@ -155,9 +161,9 @@ setup (PvRenderer *self)
     }
     self->north_size = offset - self->north_offset;
     self->south_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int z = 0; z < depth; z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
@@ -173,9 +179,9 @@ setup (PvRenderer *self)
     }
     self->south_size = offset - self->south_offset;
     self->east_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = width; x >= 0; x--) {
+        for (int y = 0; y < height; y++) {
+            for (int z = 0; z < depth; z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
@@ -191,9 +197,9 @@ setup (PvRenderer *self)
     }
     self->east_size = offset - self->east_offset;
     self->west_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int z = 0; z < depth; z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
@@ -209,9 +215,9 @@ setup (PvRenderer *self)
     }
     self->west_size = offset - self->west_offset;
     self->top_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int z = depth; z >= 0; z--) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
@@ -227,9 +233,9 @@ setup (PvRenderer *self)
     }
     self->top_size = offset - self->top_offset;
     self->bottom_offset = offset;
-    for (guint x = 0; x < pv_map_get_width (self->map); x++) {
-        for (guint y = 0; y < pv_map_get_height (self->map); y++) {
-            for (guint z = 0; z < pv_map_get_depth (self->map); z++) {
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int z = 0; z < depth; z++) {
                 PvBlockType *type = pv_map_get_block (self->map, x, y, z);
                 if (type == NULL)
                     continue;
