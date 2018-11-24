@@ -81,31 +81,52 @@ static void
 add_square (GArray  *vertices,
             GLfloat *pos,
             GLfloat *v0,
-            GLfloat *v1)
+            GLfloat *v1,
+            GLfloat  r,
+            GLfloat  g,
+            GLfloat  b)
 {
     add_float (vertices, pos[0]);
     add_float (vertices, pos[1]);
     add_float (vertices, pos[2]);
+    add_float (vertices, r);
+    add_float (vertices, g);
+    add_float (vertices, b);
 
     add_float (vertices, pos[0] + v0[0]);
     add_float (vertices, pos[1] + v0[1]);
     add_float (vertices, pos[2] + v0[2]);
+    add_float (vertices, r);
+    add_float (vertices, g);
+    add_float (vertices, b);
 
     add_float (vertices, pos[0] + v0[0] + v1[0]);
     add_float (vertices, pos[1] + v0[1] + v1[1]);
     add_float (vertices, pos[2] + v0[2] + v1[2]);
+    add_float (vertices, r);
+    add_float (vertices, g);
+    add_float (vertices, b);
 
     add_float (vertices, pos[0]);
     add_float (vertices, pos[1]);
     add_float (vertices, pos[2]);
+    add_float (vertices, r);
+    add_float (vertices, g);
+    add_float (vertices, b);
 
     add_float (vertices, pos[0] + v0[0] + v1[0]);
     add_float (vertices, pos[1] + v0[1] + v1[1]);
     add_float (vertices, pos[2] + v0[2] + v1[2]);
+    add_float (vertices, r);
+    add_float (vertices, g);
+    add_float (vertices, b);
 
     add_float (vertices, pos[0] + v1[0]);
     add_float (vertices, pos[1] + v1[1]);
     add_float (vertices, pos[2] + v1[2]);
+    add_float (vertices, r);
+    add_float (vertices, g);
+    add_float (vertices, b);
 }
 
 static void
@@ -147,7 +168,7 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                add_square (vertices, top_pos, south, down);
+                add_square (vertices, top_pos, south, down, 0, 1, 0);
                 self->north_size += 2;
                 if (y + 1 > self->north)
                     self->north = y + 1;
@@ -166,7 +187,7 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                add_square (vertices, base_pos, up, north);
+                add_square (vertices, base_pos, up, north, 0, 1, 0);
                 self->south_size += 2;
                 if (y < self->south)
                     self->south = y;
@@ -185,7 +206,7 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                add_square (vertices, top_pos, down, west);
+                add_square (vertices, top_pos, down, west, 1, 0, 0);
                 self->east_size += 2;
                 if (x > self->east)
                     self->east = x;
@@ -204,7 +225,7 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                add_square (vertices, base_pos, east, up);
+                add_square (vertices, base_pos, east, up, 1, 0, 0);
                 self->west_size += 2;
                 if (x < self->west)
                     self->west = x;
@@ -223,7 +244,7 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                add_square (vertices, top_pos, west, south);
+                add_square (vertices, top_pos, west, south, 0, 0, 1);
                 self->top_size += 2;
                 if (z + 1 > self->top)
                     self->top = z + 1;
@@ -242,7 +263,7 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                add_square (vertices, base_pos, north, east);
+                add_square (vertices, base_pos, north, east, 0, 0, 1);
                 self->bottom_size += 2;
                 if (z < self->bottom)
                     self->bottom = z;
@@ -269,7 +290,10 @@ setup (PvRenderer *self)
 
     GLint position_attr = glGetAttribLocation (self->program, "position");
     glEnableVertexAttribArray (position_attr);
-    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 24, 0);
+    GLint color_attr = glGetAttribLocation (self->program, "color");
+    glEnableVertexAttribArray (color_attr);
+    glVertexAttribPointer (color_attr, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
 
     const gchar *renderer = (gchar *) glGetString (GL_RENDERER);
     g_printerr ("renderer: %s\n", renderer);
@@ -354,14 +378,12 @@ pv_renderer_render (PvRenderer *self,
     GLint mvp = glGetUniformLocation (self->program, "MVP");
     pv_camera_transform (self->camera, width, height, mvp);
 
-    GLint color = glGetUniformLocation (self->program, "Color");
     glBindVertexArray (self->vao);
 
     GLint n_triangles = 0;
     GLfloat x, y, z;
     pv_camera_get_position (self->camera, &x, &y, &z);
 
-    glUniform3f (color, 1, 0, 0);
     if (x > self->west) {
         glDrawArrays (GL_TRIANGLES, self->east_offset * 3, self->east_size * 3);
         n_triangles += self->east_size;
@@ -371,7 +393,6 @@ pv_renderer_render (PvRenderer *self,
         n_triangles += self->west_size;
     }
 
-    glUniform3f (color, 0, 1, 0);
     if (y > self->south) {
         glDrawArrays (GL_TRIANGLES, self->north_offset * 3, self->north_size * 3);
         n_triangles += self->north_size;
@@ -381,7 +402,6 @@ pv_renderer_render (PvRenderer *self,
         n_triangles += self->south_size;
     }
 
-    glUniform3f (color, 0, 0, 1);
     if (z > self->bottom) {
         glDrawArrays (GL_TRIANGLES, self->top_offset * 3, self->top_size * 3);
         n_triangles += self->top_size;
