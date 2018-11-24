@@ -70,37 +70,42 @@ load_shader (GLenum shader_type, const gchar *filename)
     return shader;
 }
 
-static guint
-add_square (GLfloat *vertices,
+static void
+add_float (GArray *vertices,
+           GLfloat value)
+{
+    g_array_append_val (vertices, value);
+}
+
+static void
+add_square (GArray  *vertices,
             GLfloat *pos,
             GLfloat *v0,
             GLfloat *v1)
 {
-    vertices[ 0] = pos[0];
-    vertices[ 1] = pos[1];
-    vertices[ 2] = pos[2];
+    add_float (vertices, pos[0]);
+    add_float (vertices, pos[1]);
+    add_float (vertices, pos[2]);
 
-    vertices[ 3] = pos[0] + v0[0];
-    vertices[ 4] = pos[1] + v0[1];
-    vertices[ 5] = pos[2] + v0[2];
+    add_float (vertices, pos[0] + v0[0]);
+    add_float (vertices, pos[1] + v0[1]);
+    add_float (vertices, pos[2] + v0[2]);
 
-    vertices[ 6] = pos[0] + v0[0] + v1[0];
-    vertices[ 7] = pos[1] + v0[1] + v1[1];
-    vertices[ 8] = pos[2] + v0[2] + v1[2];
+    add_float (vertices, pos[0] + v0[0] + v1[0]);
+    add_float (vertices, pos[1] + v0[1] + v1[1]);
+    add_float (vertices, pos[2] + v0[2] + v1[2]);
 
-    vertices[ 9] = pos[0];
-    vertices[10] = pos[1];
-    vertices[11] = pos[2];
+    add_float (vertices, pos[0]);
+    add_float (vertices, pos[1]);
+    add_float (vertices, pos[2]);
 
-    vertices[12] = vertices[6];
-    vertices[13] = vertices[7];
-    vertices[14] = vertices[8];
+    add_float (vertices, pos[0] + v0[0] + v1[0]);
+    add_float (vertices, pos[1] + v0[1] + v1[1]);
+    add_float (vertices, pos[2] + v0[2] + v1[2]);
 
-    vertices[15] = pos[0] + v1[0];
-    vertices[16] = pos[1] + v1[1];
-    vertices[17] = pos[2] + v1[2];
-
-    return 18;
+    add_float (vertices, pos[0] + v1[0]);
+    add_float (vertices, pos[1] + v1[1]);
+    add_float (vertices, pos[2] + v1[2]);
 }
 
 static void
@@ -120,17 +125,6 @@ setup (PvRenderer *self)
     gsize height = pv_map_get_height (self->map);
     gsize depth = pv_map_get_depth (self->map);
 
-    guint n_vertices = 0;
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
-            for (int z = 0; z < depth; z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type != NULL)
-                    n_vertices += 18 * 6; // FIXME: Not all sides used
-            }
-        }
-    }
-
     GLfloat north[3] = {  1,  0,  0 };
     GLfloat south[3] = { -1,  0,  0 };
     GLfloat east[3]  = {  0,  1,  0 };
@@ -140,9 +134,9 @@ setup (PvRenderer *self)
 
     /* Calculate triangles looking on each side.
      * Order from nearest to furtherest (so later triangles get rejected in the depth buffer) */
-    GLfloat *vertices = g_malloc_n (n_vertices, sizeof (GLfloat));
-    guint offset = 0;
-    self->north_offset = offset;
+    g_autoptr(GArray) vertices = g_array_new (FALSE, FALSE, sizeof (GLfloat));
+    self->north_offset = 0;
+    self->north_size = 0;
     for (int x = 0; x < width; x++) {
         for (int y = height; y >= 0; y--) {
             for (int z = 0; z < depth; z++) {
@@ -153,14 +147,15 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                offset += add_square (&vertices[offset], top_pos, south, down);
+                add_square (vertices, top_pos, south, down);
+                self->north_size += 2;
                 if (y + 1 > self->north)
                     self->north = y + 1;
             }
         }
     }
-    self->north_size = offset - self->north_offset;
-    self->south_offset = offset;
+    self->south_offset = self->north_offset + self->north_size;
+    self->south_size = 0;
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
@@ -171,14 +166,15 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                offset += add_square (&vertices[offset], base_pos, up, north);
+                add_square (vertices, base_pos, up, north);
+                self->south_size += 2;
                 if (y < self->south)
                     self->south = y;
             }
         }
     }
-    self->south_size = offset - self->south_offset;
-    self->east_offset = offset;
+    self->east_offset = self->south_offset + self->south_size;
+    self->east_size = 0;
     for (int x = width; x >= 0; x--) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
@@ -189,14 +185,15 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                offset += add_square (&vertices[offset], top_pos, down, west);
+                add_square (vertices, top_pos, down, west);
+                self->east_size += 2;
                 if (x > self->east)
                     self->east = x;
             }
         }
     }
-    self->east_size = offset - self->east_offset;
-    self->west_offset = offset;
+    self->west_offset = self->east_offset + self->east_size;
+    self->west_size = 0;
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
@@ -207,14 +204,15 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                offset += add_square (&vertices[offset], base_pos, east, up);
+                add_square (vertices, base_pos, east, up);
+                self->west_size += 2;
                 if (x < self->west)
                     self->west = x;
             }
         }
     }
-    self->west_size = offset - self->west_offset;
-    self->top_offset = offset;
+    self->top_offset = self->west_offset + self->west_size;
+    self->top_size = 0;
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = depth; z >= 0; z--) {
@@ -225,14 +223,15 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                offset += add_square (&vertices[offset], top_pos, west, south);
+                add_square (vertices, top_pos, west, south);
+                self->top_size += 2;
                 if (z + 1 > self->top)
                     self->top = z + 1;
             }
         }
     }
-    self->top_size = offset - self->top_offset;
-    self->bottom_offset = offset;
+    self->bottom_offset = self->top_offset + self->top_size;
+    self->bottom_size = 0;
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
@@ -243,15 +242,15 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                offset += add_square (&vertices[offset], base_pos, north, east);
+                add_square (vertices, base_pos, north, east);
+                self->bottom_size += 2;
                 if (z < self->bottom)
                     self->bottom = z;
             }
         }
     }
-    self->bottom_size = offset - self->bottom_offset;
 
-    glBufferData (GL_ARRAY_BUFFER, (self->north_size + self->south_size + self->east_size + self->west_size + self->top_size + self->bottom_size) * sizeof (GLfloat), vertices, GL_STATIC_DRAW);
+    glBufferData (GL_ARRAY_BUFFER, vertices->len * sizeof (GLfloat), vertices->data, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
     GLuint fragment_shader = load_shader (GL_FRAGMENT_SHADER, "pv-fragment.glsl");
@@ -364,32 +363,32 @@ pv_renderer_render (PvRenderer *self,
 
     glUniform3f (color, 1, 0, 0);
     if (x > self->west) {
-        glDrawArrays (GL_TRIANGLES, self->east_offset / 3, self->east_size / 3);
-        n_triangles += self->east_size / 3;
+        glDrawArrays (GL_TRIANGLES, self->east_offset * 3, self->east_size * 3);
+        n_triangles += self->east_size;
     }
     if (x < self->east) {
-        glDrawArrays (GL_TRIANGLES, self->west_offset / 3, self->west_size / 3);
-        n_triangles += self->west_size / 3;
+        glDrawArrays (GL_TRIANGLES, self->west_offset * 3, self->west_size * 3);
+        n_triangles += self->west_size;
     }
 
     glUniform3f (color, 0, 1, 0);
     if (y > self->south) {
-        glDrawArrays (GL_TRIANGLES, self->north_offset / 3, self->north_size / 3);
-        n_triangles += self->north_size / 3;
+        glDrawArrays (GL_TRIANGLES, self->north_offset * 3, self->north_size * 3);
+        n_triangles += self->north_size;
     }
     if (y < self->north) {
-        glDrawArrays (GL_TRIANGLES, self->south_offset / 3, self->south_size / 3);
-        n_triangles += self->south_size / 3;
+        glDrawArrays (GL_TRIANGLES, self->south_offset * 3, self->south_size * 3);
+        n_triangles += self->south_size;
     }
 
     glUniform3f (color, 0, 0, 1);
     if (z > self->bottom) {
-        glDrawArrays (GL_TRIANGLES, self->top_offset / 3, self->top_size / 3);
-        n_triangles += self->top_size / 3;
+        glDrawArrays (GL_TRIANGLES, self->top_offset * 3, self->top_size * 3);
+        n_triangles += self->top_size;
     }
     if (z < self->top) {
-        glDrawArrays (GL_TRIANGLES, self->bottom_offset / 3, self->bottom_size / 3);
-        n_triangles += self->bottom_size / 3;
+        glDrawArrays (GL_TRIANGLES, self->bottom_offset * 3, self->bottom_size * 3);
+        n_triangles += self->bottom_size;
     }
 
     g_printerr ("Rendered %d triangles\n", n_triangles);
