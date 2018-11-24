@@ -168,7 +168,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                add_square (vertices, top_pos, south, down, 0, 1, 0);
+                gdouble r, g, b;
+                pv_block_type_get_color (type, &r, &g, &b);
+                add_square (vertices, top_pos, south, down, r, g, b);
                 self->north_size += 2;
                 if (y + 1 > self->north)
                     self->north = y + 1;
@@ -187,7 +189,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                add_square (vertices, base_pos, up, north, 0, 1, 0);
+                gdouble r, g, b;
+                pv_block_type_get_color (type, &r, &g, &b);
+                add_square (vertices, base_pos, up, north, r, g, b);
                 self->south_size += 2;
                 if (y < self->south)
                     self->south = y;
@@ -206,7 +210,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                add_square (vertices, top_pos, down, west, 1, 0, 0);
+                gdouble r, g, b;
+                pv_block_type_get_color (type, &r, &g, &b);
+                add_square (vertices, top_pos, down, west, r, g, b);
                 self->east_size += 2;
                 if (x > self->east)
                     self->east = x;
@@ -225,7 +231,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                add_square (vertices, base_pos, east, up, 1, 0, 0);
+                gdouble r, g, b;
+                pv_block_type_get_color (type, &r, &g, &b);
+                add_square (vertices, base_pos, east, up, r, g, b);
                 self->west_size += 2;
                 if (x < self->west)
                     self->west = x;
@@ -244,7 +252,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                add_square (vertices, top_pos, west, south, 0, 0, 1);
+                gdouble r, g, b;
+                pv_block_type_get_color (type, &r, &g, &b);
+                add_square (vertices, top_pos, west, south, r, g, b);
                 self->top_size += 2;
                 if (z + 1 > self->top)
                     self->top = z + 1;
@@ -263,7 +273,9 @@ setup (PvRenderer *self)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                add_square (vertices, base_pos, north, east, 0, 0, 1);
+                gdouble r, g, b;
+                pv_block_type_get_color (type, &r, &g, &b);
+                add_square (vertices, base_pos, north, east, r, g, b);
                 self->bottom_size += 2;
                 if (z < self->bottom)
                     self->bottom = z;

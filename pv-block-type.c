@@ -74,3 +74,19 @@ pv_block_type_set_color (PvBlockType *self,
     self->g = g;
     self->b = b;
 }
+
+void
+pv_block_type_get_color (PvBlockType *self,
+                         gdouble     *r,
+                         gdouble     *g,
+                         gdouble     *b)
+{
+    g_return_if_fail (PV_IS_BLOCK_TYPE (self));
+
+    if (r != NULL)
+        *r = self->r;
+    if (g != NULL)
+        *g = self->g;
+    if (b != NULL)
+        *b = self->b;
+}

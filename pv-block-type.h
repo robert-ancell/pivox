@@ -22,3 +22,8 @@ void         pv_block_type_set_color (PvBlockType *type,
                                       gdouble      r,
                                       gdouble      g,
                                       gdouble      b);
+
+void         pv_block_type_get_color (PvBlockType *type,
+                                      gdouble     *r,
+                                      gdouble     *g,
+                                      gdouble     *b);

@@ -38,14 +38,22 @@ load_map (PvApplication *self)
     guint32 size_x, size_y, size_z;
     pv_vox_file_get_size (vox_file, &size_x, &size_y, &size_z);
     self->map = pv_map_new (size_x, size_y, size_z);
-    PvBlockType *ground = pv_map_get_block_type (self->map, "ground");
+    g_autoptr(GPtrArray) block_types = g_ptr_array_new_with_free_func (g_object_unref);
+    for (int i = 1; i < 256; i++) {
+        g_autofree gchar *name = g_strdup_printf ("%d", i);
+        g_autoptr(PvBlockType) block_type = pv_block_type_new (name);
+        PvVoxMaterial *material = pv_vox_file_get_material (vox_file, i);
+        pv_block_type_set_color (block_type, material->r / 255.0f, material->g / 255.0f, material->b / 255.0f);
+        pv_map_add_block_type (self->map, block_type);
+        g_ptr_array_add (block_types, g_object_ref (block_type));
+    }
     guint32 model_count = pv_vox_file_get_model_count (vox_file);
     for (guint32 model_index = 0; model_index < model_count; model_index++) {
         guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file, model_index);
         for (guint32 i = 0; i < voxel_count; i++) {
-            guint8 x, y, z;
-            pv_vox_file_get_voxel (vox_file, model_index, i, &x, &y, &z, NULL);
-            pv_map_set_block (self->map, x, y, z, ground);
+            guint8 x, y, z, color_index;
+            pv_vox_file_get_voxel (vox_file, model_index, i, &x, &y, &z, &color_index);
+            pv_map_set_block (self->map, x, y, z, g_ptr_array_index (block_types, color_index));
         }
     }
 }

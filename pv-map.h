@@ -26,6 +26,9 @@ guint        pv_map_get_height     (PvMap       *map);
 
 guint        pv_map_get_depth      (PvMap       *map);
 
+void         pv_map_add_block_type (PvMap       *map,
+                                    PvBlockType *block_type);
+
 PvBlockType *pv_map_get_block_type (PvMap       *map,
                                     const gchar *name);
 

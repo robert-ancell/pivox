@@ -70,8 +70,6 @@ pv_map_init (PvMap *self)
 {
     self->block_types = g_ptr_array_new_with_free_func (g_object_unref);
     g_ptr_array_add (self->block_types, NULL); /* air */
-    g_autoptr(PvBlockType) ground_type = pv_block_type_new ("ground");
-    g_ptr_array_add (self->block_types, g_object_ref (ground_type));
 }
 
 PvMap *
@@ -111,6 +109,14 @@ pv_map_get_depth (PvMap *self)
     return self->depth;
 }
 
+void
+pv_map_add_block_type (PvMap       *self,
+                       PvBlockType *block_type)
+{
+    g_return_if_fail (PV_IS_MAP (self));
+    g_ptr_array_add (self->block_types, g_object_ref (block_type));
+}
+
 PvBlockType *
 pv_map_get_block_type (PvMap       *self,
                        const gchar *name)
@@ -131,7 +137,9 @@ pv_map_set_block (PvMap       *self,
     if (x >= self->width || y >= self->height || z >= self->depth)
         return;
 
-    self->blocks[(z * self->height + y) * self->width + x] = type != NULL ? 1 : 0; // FIXME
+    guint index = 0;
+    g_ptr_array_find (self->block_types, type, &index);
+    self->blocks[(z * self->height + y) * self->width + x] = index;
 }
 
 PvBlockType *
