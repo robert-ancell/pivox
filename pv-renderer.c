@@ -365,31 +365,31 @@ pv_renderer_render (PvRenderer *self,
     glUniform3f (color, 1, 0, 0);
     if (x > self->west) {
         glDrawArrays (GL_TRIANGLES, self->east_offset / 3, self->east_size / 3);
-        n_triangles += self->east_size;
+        n_triangles += self->east_size / 3;
     }
     if (x < self->east) {
         glDrawArrays (GL_TRIANGLES, self->west_offset / 3, self->west_size / 3);
-        n_triangles += self->west_size;
+        n_triangles += self->west_size / 3;
     }
 
     glUniform3f (color, 0, 1, 0);
     if (y > self->south) {
         glDrawArrays (GL_TRIANGLES, self->north_offset / 3, self->north_size / 3);
-        n_triangles += self->north_size;
+        n_triangles += self->north_size / 3;
     }
     if (y < self->north) {
         glDrawArrays (GL_TRIANGLES, self->south_offset / 3, self->south_size / 3);
-        n_triangles += self->south_size;
+        n_triangles += self->south_size / 3;
     }
 
     glUniform3f (color, 0, 0, 1);
     if (z > self->bottom) {
         glDrawArrays (GL_TRIANGLES, self->top_offset / 3, self->top_size / 3);
-        n_triangles += self->top_size;
+        n_triangles += self->top_size / 3;
     }
     if (z < self->top) {
         glDrawArrays (GL_TRIANGLES, self->bottom_offset / 3, self->bottom_size / 3);
-        n_triangles += self->bottom_size;
+        n_triangles += self->bottom_size / 3;
     }
 
     g_printerr ("Rendered %d triangles\n", n_triangles);
