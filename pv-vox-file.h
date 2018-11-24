@@ -14,32 +14,13 @@
 
 G_DECLARE_FINAL_TYPE (PvVoxFile, pv_vox_file, PV, VOX_FILE, GObject)
 
-typedef enum 
-{
-    PV_VOX_MATERIAL_TYPE_DIFFUSE  = 0,
-    PV_VOX_MATERIAL_TYPE_METAL    = 1,
-    PV_VOX_MATERIAL_TYPE_GLASS    = 2,
-    PV_VOX_MATERIAL_TYPE_EMISSIVE = 3
-} PvVoxMaterialType;
-
 typedef struct
 {
-   guint8 r;
-   guint8 g;
-   guint8 b;
-   guint8 a;
-
-   PvVoxMaterialType type;
-
-   gfloat weight;
-   gfloat plastic;
-   gfloat roughness;
-   gfloat specular;
-   gfloat ior;
-   gfloat attenuation;
-   gfloat power;
-   gfloat glow;
-   gboolean is_total_power;
+   guint8      r;
+   guint8      g;
+   guint8      b;
+   guint8      a;
+   GHashTable *properties;
 } PvVoxMaterial;
 
 PvVoxFile     *pv_vox_file_new             (GFile        *file);

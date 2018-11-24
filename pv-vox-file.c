@@ -134,10 +134,9 @@ uint_to_id (guint32 value)
 }
 
 static guint32
-read_uint (PvVoxFile *self,
-           guint8    *data,
-           gsize      data_length,
-           gsize      offset)
+read_uint (guint8 *data,
+           gsize   data_length,
+           gsize   offset)
 {
     if (offset + 4 > data_length)
         return 0;
@@ -149,13 +148,36 @@ read_uint (PvVoxFile *self,
 }
 
 static gfloat
-read_float (PvVoxFile *self,
-            guint8    *data,
-            gsize      data_length,
-            gsize      offset)
+read_float (guint8 *data,
+            gsize   data_length,
+            gsize   offset)
 {
-    guint32 value = read_uint (self, data, data_length, offset);
+    guint32 value = read_uint (data, data_length, offset);
     return *((gfloat *) &value);
+}
+
+static gchar *
+read_string (guint8 *data,
+             gsize   data_length,
+             gsize  *offset)
+{
+    if (*offset + 4 > data_length)
+        return g_strdup ("");
+
+    guint32 length = read_uint (data, data_length, *offset);
+    *offset += 4;
+
+    if (*offset + length > data_length) {
+       *offset = data_length;
+       return g_strdup ("");
+    }
+
+    gchar *value = g_malloc (length + 1);
+    memcpy (value, data + *offset, length);
+    value[length] = '\0';
+    *offset += length;
+
+    return value;
 }
 
 static void
@@ -166,6 +188,8 @@ pv_vox_file_dispose (GObject *object)
     g_clear_object (&self->file);
     g_clear_pointer (&self->data, g_free);
     g_clear_pointer (&self->models, g_ptr_array_unref);
+    for (int i = 0; i < 256; i++)
+        g_clear_pointer (&self->materials[i].properties, g_hash_table_unref);
 
     G_OBJECT_CLASS (pv_vox_file_parent_class)->dispose (object);
 }
@@ -188,6 +212,7 @@ pv_vox_file_init (PvVoxFile *self)
         self->materials[i].g = color[1];
         self->materials[i].b = color[2];
         self->materials[i].a = color[3];
+        self->materials[i].properties = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
     }
 }
 
@@ -222,7 +247,7 @@ decode_pack_chunk (PvVoxFile *self,
     if (chunk_length < 4)
         return TRUE;
 
-    //guint32 n_models = read_uint (self, chunk_start, chunk_length, 0);
+    //guint32 n_models = read_uint (chunk_start, chunk_length, 0);
 
     return TRUE;
 }
@@ -237,9 +262,9 @@ decode_size_chunk (PvVoxFile *self,
        return TRUE;
 
     VoxModel *model = g_new0 (VoxModel, 1);
-    model->size_x = read_uint (self, chunk_start, chunk_length, 0);
-    model->size_y = read_uint (self, chunk_start, chunk_length, 4);
-    model->size_z = read_uint (self, chunk_start, chunk_length, 8);
+    model->size_x = read_uint (chunk_start, chunk_length, 0);
+    model->size_y = read_uint (chunk_start, chunk_length, 4);
+    model->size_z = read_uint (chunk_start, chunk_length, 8);
     g_ptr_array_add (self->models, model);
 
     return TRUE;
@@ -254,7 +279,7 @@ decode_xyzi_chunk (PvVoxFile *self,
     if (chunk_length < 4)
         return TRUE;
 
-    guint32 voxels_length = read_uint (self, chunk_start, chunk_length, 0);
+    guint32 voxels_length = read_uint (chunk_start, chunk_length, 0);
     if (4 + voxels_length * 4 > chunk_length) {
         guint32 max_voxels_length = (chunk_length / 4) - 4;
         g_warning ("XYZI block specified %u voxels but only space for %u", voxels_length, max_voxels_length);
@@ -302,44 +327,90 @@ decode_matt_chunk (PvVoxFile *self,
     if (chunk_length < 16)
         return TRUE;
 
-    guint32 id = read_uint (self, chunk_start, chunk_length, 0);
+    guint32 id = read_uint (chunk_start, chunk_length, 0);
     // FIXME: Check id between 1 and 255
     PvVoxMaterial null_material;
     PvVoxMaterial *material = id < 256 ? &self->materials[id] : &null_material;
-    material->type = read_uint (self, chunk_start, chunk_length, 4);
-    material->weight = read_float (self, chunk_start, chunk_length, 8);
-    guint32 property_bits = read_uint (self, chunk_start, chunk_length, 12);
+    guint32 type = read_uint (chunk_start, chunk_length, 4);
+    switch (type) {
+    case 0:
+        g_hash_table_insert (material->properties, g_strdup ("_type"), g_strdup ("_diffuse"));
+        break;
+    case 1:
+        g_hash_table_insert (material->properties, g_strdup ("_type"), g_strdup ("_metal"));
+        break;
+    case 2:
+        g_hash_table_insert (material->properties, g_strdup ("_type"), g_strdup ("_glass"));
+        break;
+    case 3:
+        g_hash_table_insert (material->properties, g_strdup ("_type"), g_strdup ("_emissive"));
+        break;
+    }
+    gfloat weight = read_float (chunk_start, chunk_length, 8);
+    g_hash_table_insert (material->properties, g_strdup ("_weight"), g_strdup_printf ("%f", weight));
+    guint32 property_bits = read_uint (chunk_start, chunk_length, 12);
     gsize property_offset = 0;
     if (property_bits & 0x00000001) {
-        material->plastic = read_float (self, chunk_start, chunk_length, property_offset);
+        gfloat plastic = read_float (chunk_start, chunk_length, property_offset);
+        g_hash_table_insert (material->properties, g_strdup ("_plastic"), g_strdup_printf ("%f", plastic));
         property_offset += 4;
     }
     if (property_bits & 0x00000002) {
-        material->roughness = read_float (self, chunk_start, chunk_length, property_offset);
+        gfloat rough = read_float (chunk_start, chunk_length, property_offset);
+        g_hash_table_insert (material->properties, g_strdup ("_rough"), g_strdup_printf ("%f", rough));
         property_offset += 4;
     }
     if (property_bits & 0x00000004) {
-        material->specular = read_float (self, chunk_start, chunk_length, property_offset);
+        gfloat spec = read_float (chunk_start, chunk_length, property_offset);
+        g_hash_table_insert (material->properties, g_strdup ("_spec"), g_strdup_printf ("%f", spec));
         property_offset += 4;
     }
     if (property_bits & 0x00000008) {
-        material->ior = read_float (self, chunk_start, chunk_length, property_offset);
+        gfloat ior = read_float (chunk_start, chunk_length, property_offset);
+        g_hash_table_insert (material->properties, g_strdup ("_ior"), g_strdup_printf ("%f", ior));
         property_offset += 4;
     }
     if (property_bits & 0x00000010) {
-        material->attenuation = read_float (self, chunk_start, chunk_length, property_offset);
+        gfloat att = read_float (chunk_start, chunk_length, property_offset);
+        g_hash_table_insert (material->properties, g_strdup ("_att"), g_strdup_printf ("%f", att));
         property_offset += 4;
     }
     if (property_bits & 0x00000020) {
-        material->power = read_float (self, chunk_start, chunk_length, property_offset);
+        //material->power = read_float (chunk_start, chunk_length, property_offset);
         property_offset += 4;
     }
     if (property_bits & 0x00000040) {
-        material->glow = read_float (self, chunk_start, chunk_length, property_offset);
+        gfloat glow = read_float (chunk_start, chunk_length, property_offset);
+        g_hash_table_insert (material->properties, g_strdup ("_glow"), g_strdup_printf ("%f", glow));
         property_offset += 4;
     }
     if (property_bits & 0x00000080) {
-        material->is_total_power = TRUE;
+        //material->is_total_power = TRUE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+decode_matl_chunk (PvVoxFile *self,
+                   guint8    *chunk_start,
+                   gsize      chunk_length,
+                   GError   **error)
+{
+    if (chunk_length < 8)
+        return TRUE;
+
+    guint32 id = read_uint (chunk_start, chunk_length, 0);
+    guint32 property_count = read_uint (chunk_start, chunk_length, 4);
+
+    PvVoxMaterial null_material;
+    PvVoxMaterial *material = id < 256 ? &self->materials[id] : &null_material;
+
+    gsize offset = 8;
+    for (guint32 i = 0; i < property_count; i++) {
+        gchar *name = read_string (chunk_start, chunk_length, &offset);
+        gchar *value = read_string (chunk_start, chunk_length, &offset);
+        g_hash_table_insert (material->properties, name, value);
     }
 
     return TRUE;
@@ -364,9 +435,9 @@ decode_chunks (PvVoxFile *self,
         }
 
         /* Read header, check enough space for data */
-        guint32 chunk_id = read_uint (self, chunk_header, n_remaining, 0);
-        guint32 chunk_length = read_uint (self, chunk_header, n_remaining, 4);
-        guint32 child_chunks_length = read_uint (self, chunk_header, n_remaining, 8);
+        guint32 chunk_id = read_uint (chunk_header, n_remaining, 0);
+        guint32 chunk_length = read_uint (chunk_header, n_remaining, 4);
+        guint32 child_chunks_length = read_uint (chunk_header, n_remaining, 8);
 
         g_autofree gchar *id_string = uint_to_id (chunk_id);
 
@@ -393,6 +464,8 @@ decode_chunks (PvVoxFile *self,
             decode_func = decode_rgba_chunk;
         else if (chunk_id == id_to_uint ("MATT"))
             decode_func = decode_matt_chunk;
+        else if (chunk_id == id_to_uint ("MATL"))
+            decode_func = decode_matl_chunk;
         else
             g_debug ("Ignoring unknown MagicaVoxel chunk %s", id_string);
         if (decode_func != NULL && !decode_func (self, chunk_start, chunk_length, error))
@@ -424,12 +497,12 @@ pv_vox_file_decode (PvVoxFile    *self,
         return FALSE;
     }
 
-    guint32 id = read_uint (self, self->data, self->data_length, 0);
+    guint32 id = read_uint (self->data, self->data_length, 0);
     if (id != id_to_uint ("VOX ")) {
         g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Not a MagicaVoxel file");
         return FALSE;
     }
-    guint32 version = read_uint (self, self->data, self->data_length, 4);
+    guint32 version = read_uint (self->data, self->data_length, 4);
     g_printerr ("version: %u\n", version);
 
     return decode_chunks (self, self->data + 8, self->data_length - 8, error);
