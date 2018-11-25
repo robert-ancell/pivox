@@ -31,7 +31,7 @@ load_map (PvApplication *self)
     g_autoptr(GFile) file = g_file_new_for_uri ("resource:///com/example/pivox/map.vox");
     g_autoptr(PvVoxFile) vox_file = pv_vox_file_new (file);
     if (!pv_vox_file_decode (vox_file, NULL, &error)) {
-       g_printerr ("Failed to load map: %s", error->message);
+       g_printerr ("Failed to load map: %s\n", error->message);
        return;
     }
 
