@@ -78,7 +78,15 @@ add_float (GArray *vertices,
 }
 
 static void
+add_uint (GArray *vertices,
+          GLuint value)
+{
+    g_array_append_val (vertices, value);
+}
+
+static void
 add_square (GArray  *vertices,
+            GArray  *triangles,
             GLfloat *pos,
             GLfloat *v0,
             GLfloat *v1,
@@ -86,6 +94,8 @@ add_square (GArray  *vertices,
             GLfloat  g,
             GLfloat  b)
 {
+    guint start = vertices->len / 6;
+
     add_float (vertices, pos[0]);
     add_float (vertices, pos[1]);
     add_float (vertices, pos[2]);
@@ -107,26 +117,19 @@ add_square (GArray  *vertices,
     add_float (vertices, g);
     add_float (vertices, b);
 
-    add_float (vertices, pos[0]);
-    add_float (vertices, pos[1]);
-    add_float (vertices, pos[2]);
-    add_float (vertices, r);
-    add_float (vertices, g);
-    add_float (vertices, b);
-
-    add_float (vertices, pos[0] + v0[0] + v1[0]);
-    add_float (vertices, pos[1] + v0[1] + v1[1]);
-    add_float (vertices, pos[2] + v0[2] + v1[2]);
-    add_float (vertices, r);
-    add_float (vertices, g);
-    add_float (vertices, b);
-
     add_float (vertices, pos[0] + v1[0]);
     add_float (vertices, pos[1] + v1[1]);
     add_float (vertices, pos[2] + v1[2]);
     add_float (vertices, r);
     add_float (vertices, g);
     add_float (vertices, b);
+
+    add_uint (triangles, start + 0);
+    add_uint (triangles, start + 1);
+    add_uint (triangles, start + 2);
+    add_uint (triangles, start + 0);
+    add_uint (triangles, start + 2);
+    add_uint (triangles, start + 3);
 }
 
 static void
@@ -137,10 +140,6 @@ setup (PvRenderer *self)
 
     glGenVertexArrays (1, &self->vao);
     glBindVertexArray (self->vao);
-
-    GLuint buffer;
-    glGenBuffers (1, &buffer);
-    glBindBuffer (GL_ARRAY_BUFFER, buffer);
 
     gsize width = pv_map_get_width (self->map);
     gsize height = pv_map_get_height (self->map);
@@ -156,6 +155,7 @@ setup (PvRenderer *self)
     /* Calculate triangles looking on each side.
      * Order from nearest to furtherest (so later triangles get rejected in the depth buffer) */
     g_autoptr(GArray) vertices = g_array_new (FALSE, FALSE, sizeof (GLfloat));
+    g_autoptr(GArray) triangles = g_array_new (FALSE, FALSE, sizeof (GLuint));
     self->north_offset = 0;
     self->north_size = 0;
     for (int x = 0; x < width; x++) {
@@ -170,7 +170,7 @@ setup (PvRenderer *self)
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 gdouble r, g, b;
                 pv_block_type_get_color (type, &r, &g, &b);
-                add_square (vertices, top_pos, south, down, r, g, b);
+                add_square (vertices, triangles, top_pos, south, down, r, g, b);
                 self->north_size += 2;
                 if (y + 1 > self->north)
                     self->north = y + 1;
@@ -191,7 +191,7 @@ setup (PvRenderer *self)
                 GLfloat base_pos[3] = { x, y, z };
                 gdouble r, g, b;
                 pv_block_type_get_color (type, &r, &g, &b);
-                add_square (vertices, base_pos, up, north, r, g, b);
+                add_square (vertices, triangles, base_pos, up, north, r, g, b);
                 self->south_size += 2;
                 if (y < self->south)
                     self->south = y;
@@ -212,7 +212,7 @@ setup (PvRenderer *self)
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 gdouble r, g, b;
                 pv_block_type_get_color (type, &r, &g, &b);
-                add_square (vertices, top_pos, down, west, r, g, b);
+                add_square (vertices, triangles, top_pos, down, west, r, g, b);
                 self->east_size += 2;
                 if (x > self->east)
                     self->east = x;
@@ -233,7 +233,7 @@ setup (PvRenderer *self)
                 GLfloat base_pos[3] = { x, y, z };
                 gdouble r, g, b;
                 pv_block_type_get_color (type, &r, &g, &b);
-                add_square (vertices, base_pos, east, up, r, g, b);
+                add_square (vertices, triangles, base_pos, east, up, r, g, b);
                 self->west_size += 2;
                 if (x < self->west)
                     self->west = x;
@@ -254,7 +254,7 @@ setup (PvRenderer *self)
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 gdouble r, g, b;
                 pv_block_type_get_color (type, &r, &g, &b);
-                add_square (vertices, top_pos, west, south, r, g, b);
+                add_square (vertices, triangles, top_pos, west, south, r, g, b);
                 self->top_size += 2;
                 if (z + 1 > self->top)
                     self->top = z + 1;
@@ -275,7 +275,7 @@ setup (PvRenderer *self)
                 GLfloat base_pos[3] = { x, y, z };
                 gdouble r, g, b;
                 pv_block_type_get_color (type, &r, &g, &b);
-                add_square (vertices, base_pos, north, east, r, g, b);
+                add_square (vertices, triangles, base_pos, north, east, r, g, b);
                 self->bottom_size += 2;
                 if (z < self->bottom)
                     self->bottom = z;
@@ -283,7 +283,15 @@ setup (PvRenderer *self)
         }
     }
 
+    GLuint vertex_buffer;
+    glGenBuffers (1, &vertex_buffer);
+    glBindBuffer (GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData (GL_ARRAY_BUFFER, vertices->len * sizeof (GLfloat), vertices->data, GL_STATIC_DRAW);
+
+    GLuint triangle_buffer;
+    glGenBuffers (1, &triangle_buffer);
+    glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, triangle_buffer);
+    glBufferData (GL_ELEMENT_ARRAY_BUFFER, triangles->len * sizeof (GLuint), triangles->data, GL_STATIC_DRAW);
 
     GLuint vertex_shader = load_shader (GL_VERTEX_SHADER, "pv-vertex.glsl");
     GLuint fragment_shader = load_shader (GL_FRAGMENT_SHADER, "pv-fragment.glsl");
@@ -397,29 +405,29 @@ pv_renderer_render (PvRenderer *self,
     pv_camera_get_position (self->camera, &x, &y, &z);
 
     if (x > self->west) {
-        glDrawArrays (GL_TRIANGLES, self->east_offset * 3, self->east_size * 3);
+        glDrawElements (GL_TRIANGLES, self->east_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->east_offset * 3 * 4));
         n_triangles += self->east_size;
     }
     if (x < self->east) {
-        glDrawArrays (GL_TRIANGLES, self->west_offset * 3, self->west_size * 3);
+        glDrawElements (GL_TRIANGLES, self->west_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->west_offset * 3 * 4));
         n_triangles += self->west_size;
     }
 
     if (y > self->south) {
-        glDrawArrays (GL_TRIANGLES, self->north_offset * 3, self->north_size * 3);
+        glDrawElements (GL_TRIANGLES, self->north_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->north_offset * 3 * 4));
         n_triangles += self->north_size;
     }
     if (y < self->north) {
-        glDrawArrays (GL_TRIANGLES, self->south_offset * 3, self->south_size * 3);
+        glDrawElements (GL_TRIANGLES, self->south_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->south_offset * 3 * 4));
         n_triangles += self->south_size;
     }
 
     if (z > self->bottom) {
-        glDrawArrays (GL_TRIANGLES, self->top_offset * 3, self->top_size * 3);
+        glDrawElements (GL_TRIANGLES, self->top_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->top_offset * 3 * 4));
         n_triangles += self->top_size;
     }
     if (z < self->top) {
-        glDrawArrays (GL_TRIANGLES, self->bottom_offset * 3, self->bottom_size * 3);
+        glDrawElements (GL_TRIANGLES, self->bottom_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->bottom_offset * 3 * 4));
         n_triangles += self->bottom_size;
     }
 
