@@ -16,6 +16,12 @@ G_DECLARE_FINAL_TYPE (PvVoxFile, pv_vox_file, PV, VOX_FILE, GObject)
 
 typedef struct
 {
+   guint32     id;
+   GHashTable *attributes;
+} PvVoxLayer;
+
+typedef struct
+{
    guint8      r;
    guint8      g;
    guint8      b;
@@ -33,6 +39,11 @@ void           pv_vox_file_get_size        (PvVoxFile    *file,
                                             guint32      *size_x,
                                             guint32      *size_y,
                                             guint32      *size_z);
+
+guint32        pv_vox_file_get_layer_count (PvVoxFile    *file);
+
+PvVoxLayer    *pv_vox_file_get_layer       (PvVoxFile    *file,
+                                            guint32       index);
 
 guint32        pv_vox_file_get_model_count (PvVoxFile    *file);
 
