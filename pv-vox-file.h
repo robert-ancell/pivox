@@ -22,6 +22,31 @@ typedef struct
 
 typedef struct
 {
+   guint32     id;
+   GHashTable *attributes;
+   guint32     child_id;
+   guint32     layer_id;
+} PvVoxNode;
+
+typedef struct
+{
+   guint32     id;
+   GHashTable *attributes;
+   guint32    *nodes;
+   guint32     nodes_length;
+} PvVoxNodeGroup;
+
+typedef struct
+{
+   guint32      id;
+   GHashTable  *attributes;
+   guint32     *models;
+   guint32      models_length;
+   GHashTable **model_attributes;
+} PvVoxNodeShape;
+
+typedef struct
+{
    guint8      r;
    guint8      g;
    guint8      b;

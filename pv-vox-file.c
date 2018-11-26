@@ -22,6 +22,9 @@ struct _PvVoxFile
     guint8       *data;
     gsize         data_length;
 
+    GPtrArray    *nodes;
+    GPtrArray    *groups;
+    GPtrArray    *shapes;
     GPtrArray    *layers;
     GPtrArray    *models;
 
@@ -106,6 +109,32 @@ static guint8 default_palette[1024] =
     0xbb, 0xbb, 0xbb, 0xff,  0xaa, 0xaa, 0xaa, 0xff,  0x88, 0x88, 0x88, 0xff,  0x77, 0x77, 0x77, 0xff,
     0x55, 0x55, 0x55, 0xff,  0x44, 0x44, 0x44, 0xff,  0x22, 0x22, 0x22, 0xff,  0x11, 0x11, 0x11, 0xff
 };
+
+static void
+pv_vox_node_free (PvVoxNode *node)
+{
+    g_clear_pointer (&node->attributes, g_hash_table_unref);
+    g_free (node);
+}
+
+static void
+pv_vox_node_group_free (PvVoxNodeGroup *group)
+{
+    g_clear_pointer (&group->attributes, g_hash_table_unref);
+    g_free (group->nodes);
+    g_free (group);
+}
+
+static void
+pv_vox_node_shape_free (PvVoxNodeShape *shape)
+{
+    g_clear_pointer (&shape->attributes, g_hash_table_unref);
+    g_free (shape->models);
+    for (guint32 i = 0; i < shape->models_length; i++)
+        g_clear_pointer (&shape->model_attributes[i], g_hash_table_unref);
+    g_free (shape->model_attributes);
+    g_free (shape);
+}
 
 static void
 pv_vox_layer_free (PvVoxLayer *layer)
@@ -234,6 +263,9 @@ pv_vox_file_dispose (GObject *object)
 
     g_clear_object (&self->file);
     g_clear_pointer (&self->data, g_free);
+    g_clear_pointer (&self->nodes, g_ptr_array_unref);
+    g_clear_pointer (&self->groups, g_ptr_array_unref);
+    g_clear_pointer (&self->shapes, g_ptr_array_unref);
     g_clear_pointer (&self->layers, g_ptr_array_unref);
     g_clear_pointer (&self->models, g_ptr_array_unref);
     for (int i = 0; i < 256; i++)
@@ -253,6 +285,9 @@ pv_vox_file_class_init (PvVoxFileClass *klass)
 void
 pv_vox_file_init (PvVoxFile *self)
 {
+    self->nodes = g_ptr_array_new_with_free_func ((GDestroyNotify) pv_vox_node_free);
+    self->groups = g_ptr_array_new_with_free_func ((GDestroyNotify) pv_vox_node_group_free);
+    self->shapes = g_ptr_array_new_with_free_func ((GDestroyNotify) pv_vox_node_shape_free);
     self->layers = g_ptr_array_new_with_free_func ((GDestroyNotify) pv_vox_layer_free);
     self->models = g_ptr_array_new_with_free_func (g_free);
     for (int i = 0; i < 256; i++) {
@@ -359,18 +394,21 @@ decode_nshp_chunk (PvVoxFile *self,
                    gsize     *offset,
                    GError   **error)
 {
-    guint32 id, n_models;
-    g_autoptr(GHashTable) attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
-    if (!read_uint (chunk_start, chunk_length, offset, &id, error) ||
-        !read_dict (chunk_start, chunk_length, offset, attributes, error) ||
-        !read_uint (chunk_start, chunk_length, offset, &n_models, error))
+    PvVoxNodeShape *shape = g_new0 (PvVoxNodeShape, 1);
+    shape->attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    g_ptr_array_add (self->shapes, shape);
+
+    if (!read_uint (chunk_start, chunk_length, offset, &shape->id, error) ||
+        !read_dict (chunk_start, chunk_length, offset, shape->attributes, error) ||
+        !read_uint (chunk_start, chunk_length, offset, &shape->models_length, error))
         return FALSE;
 
-    for (guint32 i = 0; i < n_models; i++) {
-        guint32 model_id;
-        g_autoptr(GHashTable) model_attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
-        if (!read_uint (chunk_start, chunk_length, offset, &model_id, error) ||
-            !read_dict (chunk_start, chunk_length, offset, model_attributes, error))
+    shape->models = g_new (guint32, shape->models_length);
+    shape->model_attributes = g_new (GHashTable *, shape->models_length);
+    for (guint32 i = 0; i < shape->models_length; i++) {
+        shape->model_attributes[i] = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+        if (!read_uint (chunk_start, chunk_length, offset, &shape->models[i], error) ||
+            !read_dict (chunk_start, chunk_length, offset, shape->model_attributes[i], error))
            return FALSE;
     }
 
@@ -384,17 +422,18 @@ decode_ntrn_chunk (PvVoxFile *self,
                    gsize     *offset,
                    GError   **error)
 {
-    g_autoptr(GHashTable) attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    PvVoxNode *node = g_new0 (PvVoxNode, 1);
+    node->attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    g_ptr_array_add (self->nodes, node);
 
-    guint32 id, child_id;
-    if (!read_uint (chunk_start, chunk_length, offset, &id, error) ||
-        !read_dict (chunk_start, chunk_length, offset, attributes, error) ||
-        !read_uint (chunk_start, chunk_length, offset, &child_id, error))
+    if (!read_uint (chunk_start, chunk_length, offset, &node->id, error) ||
+        !read_dict (chunk_start, chunk_length, offset, node->attributes, error) ||
+        !read_uint (chunk_start, chunk_length, offset, &node->child_id, error))
         return FALSE;
 
-    guint32 layer_id, n_frames;
+    guint32 n_frames;
     if (!read_uint (chunk_start, chunk_length, offset, NULL, error) || // ??
-        !read_uint (chunk_start, chunk_length, offset, &layer_id, error) ||
+        !read_uint (chunk_start, chunk_length, offset, &node->layer_id, error) ||
         !read_uint (chunk_start, chunk_length, offset, &n_frames, error))
         return FALSE;
 
@@ -414,17 +453,18 @@ decode_ngrp_chunk (PvVoxFile *self,
                    gsize     *offset,
                    GError   **error)
 {
-    g_autoptr(GHashTable) attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    PvVoxNodeGroup *group = g_new0 (PvVoxNodeGroup, 1);
+    group->attributes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    g_ptr_array_add (self->groups, group);
 
-    guint32 id, n_models;
-    if (!read_uint (chunk_start, chunk_length, offset, &id, error) ||
-        !read_dict (chunk_start, chunk_length, offset, attributes, error) ||
-        !read_uint (chunk_start, chunk_length, offset, &n_models, error))
+    if (!read_uint (chunk_start, chunk_length, offset, &group->id, error) ||
+        !read_dict (chunk_start, chunk_length, offset, group->attributes, error) ||
+        !read_uint (chunk_start, chunk_length, offset, &group->nodes_length, error))
         return FALSE;
 
-    for (guint32 i = 0; i < n_models; i++) {
-        guint32 model_id;
-        if (!read_uint (chunk_start, chunk_length, offset, &model_id, error))
+    group->nodes = g_new (guint32, group->nodes_length);
+    for (guint32 i = 0; i < group->nodes_length; i++) {
+        if (!read_uint (chunk_start, chunk_length, offset, &group->nodes[i], error))
             return FALSE;
     }
 
