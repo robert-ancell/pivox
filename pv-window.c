@@ -60,11 +60,11 @@ warp_pointer (PvWindow *self)
 static void
 realize_cb (PvWindow *self)
 {
-    GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (self->gl_area));
-    g_autoptr(GdkCursor) cursor = gdk_cursor_new_for_display (display, GDK_BLANK_CURSOR);
-    gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (self->gl_area)), cursor);
+    //GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (self->gl_area));
+    //g_autoptr(GdkCursor) cursor = gdk_cursor_new_for_display (display, GDK_BLANK_CURSOR);
+    //gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (self->gl_area)), cursor);
 
-    warp_pointer (self);
+    //warp_pointer (self);
 }
 
 static void
@@ -150,11 +150,11 @@ motion_notify_event_cb (PvWindow       *self,
     if (event->x == self->pointer_x || event->y == self->pointer_y)
         return FALSE;
 
-    g_printerr ("%f %f\n", event->x - self->pointer_x, event->y - self->pointer_y);
+    //g_printerr ("%f %f\n", event->x - self->pointer_x, event->y - self->pointer_y);
     self->pointer_x = event->x;
     self->pointer_y = event->y;
 
-    warp_pointer (self);
+    //warp_pointer (self);
 
     return FALSE;
 }
@@ -163,7 +163,7 @@ static gboolean
 leave_notify_event_cb (PvWindow         *self,
                        GdkEventCrossing *event)
 {
-    warp_pointer (self);
+    //warp_pointer (self);
 
     return FALSE;
 }
