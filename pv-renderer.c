@@ -59,12 +59,12 @@ load_shader (GLenum shader_type, const gchar *filename)
     GLint status;
     glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
     if (status == GL_FALSE) {
-       GLint log_length;
-       glGetShaderiv (shader, GL_INFO_LOG_LENGTH, &log_length);
-       gchar info[log_length];
-       glGetShaderInfoLog (shader, 1024, NULL, info);
-       g_printerr ("Failed to compile shader %s:\n", filename);
-       g_printerr ("%s\n", info);
+        GLint log_length;
+        glGetShaderiv (shader, GL_INFO_LOG_LENGTH, &log_length);
+        gchar info[log_length];
+        glGetShaderInfoLog (shader, 1024, NULL, info);
+        g_printerr ("Failed to compile shader %s:\n", filename);
+        g_printerr ("%s\n", info);
     }
 
     return shader;
