@@ -47,12 +47,11 @@ load_map (PvApplication *self)
         pv_map_add_block_type (self->map, block_type);
         g_ptr_array_add (block_types, g_object_ref (block_type));
     }
-    guint32 model_count = pv_vox_file_get_model_count (vox_file);
-    for (guint32 model_index = 0; model_index < model_count; model_index++) {
-        guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file, model_index);
+    if (pv_vox_file_get_model_count (vox_file) > 0) {
+        guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file, 0);
         for (guint32 i = 0; i < voxel_count; i++) {
             guint8 x, y, z, color_index;
-            pv_vox_file_get_voxel (vox_file, model_index, i, &x, &y, &z, &color_index);
+            pv_vox_file_get_voxel (vox_file, 0, i, &x, &y, &z, &color_index);
             pv_map_set_block (self->map, x, y, z, g_ptr_array_index (block_types, color_index));
         }
     }
