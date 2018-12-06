@@ -16,11 +16,11 @@
 #pragma once
 
 static inline void
-matrix_make (GLfloat *m,
-             GLfloat v00, GLfloat v10, GLfloat v20, GLfloat v30,
-             GLfloat v01, GLfloat v11, GLfloat v21, GLfloat v31,
-             GLfloat v02, GLfloat v12, GLfloat v22, GLfloat v32,
-             GLfloat v03, GLfloat v13, GLfloat v23, GLfloat v33)
+mat4_make (GLfloat *m,
+           GLfloat v00, GLfloat v10, GLfloat v20, GLfloat v30,
+           GLfloat v01, GLfloat v11, GLfloat v21, GLfloat v31,
+           GLfloat v02, GLfloat v12, GLfloat v22, GLfloat v32,
+           GLfloat v03, GLfloat v13, GLfloat v23, GLfloat v33)
 {
     m[ 0] = v00;
     m[ 1] = v10;
@@ -41,17 +41,18 @@ matrix_make (GLfloat *m,
 }
 
 static inline void
-matrix_transpose (GLfloat *m, GLfloat *a)
+mat4_transpose (GLfloat *m, GLfloat *a)
 {
-    matrix_make (m,
-                 a[0], a[4], a[ 8], a[12],
-                 a[1], a[5], a[ 9], a[13],
-                 a[2], a[6], a[10], a[14],
-                 a[3], a[7], a[11], a[15]);
+    mat4_make (m,
+               a[0], a[4], a[ 8], a[12],
+               a[1], a[5], a[ 9], a[13],
+               a[2], a[6], a[10], a[14],
+               a[3], a[7], a[11], a[15]);
 }
 
 static inline gboolean
-matrix_invert (GLfloat *m, GLfloat *a)
+mat4_invert (GLfloat *m,
+             GLfloat *a)
 {
     GLfloat inv[16], det;
     int i;
@@ -181,41 +182,41 @@ matrix_invert (GLfloat *m, GLfloat *a)
 }
 
 static inline void
-matrix_make_projection (GLfloat *m,
-                        GLfloat  fov_y,
-                        GLfloat  aspect,
-                        GLfloat  z_near,
-                        GLfloat  z_far)
+mat4_make_projection (GLfloat *m,
+                      GLfloat  fov_y,
+                      GLfloat  aspect,
+                      GLfloat  z_near,
+                      GLfloat  z_far)
 {
     GLfloat f = atanf (fov_y / 2.0f);
     GLfloat a = f / aspect;
     GLfloat b = (z_far + z_near) / (z_near - z_far);
     GLfloat c = (2.0f * z_far * z_near) / (z_near - z_far);
-    matrix_make ( m,
-                  a,  0,  0,  0,
-                  0,  f,  0,  0,
-                  0,  0,  b,  c,
-                  0,  0, -1,  0);
+    mat4_make ( m,
+                a,  0,  0,  0,
+                0,  f,  0,  0,
+                0,  0,  b,  c,
+                0,  0, -1,  0);
 }
 
 static inline void
-matrix_make_direction (GLfloat *m,
-                       GLfloat *dir,
-                       GLfloat *up)
+mat4_make_direction (GLfloat *m,
+                     GLfloat *dir,
+                     GLfloat *up)
 {
     GLfloat s[3];
-    vector_cross (s, dir, up);
+    vec3_cross (s, dir, up);
     GLfloat u[3];
-    vector_cross (u, s, dir);
-    matrix_make (m,
-                    s[0],    s[1],    s[2], 0,
-                    u[0],    u[1],    u[2], 0,
-                 -dir[0], -dir[1], -dir[2], 0,
-                       0,       0,       0, 1);
+    vec3_cross (u, s, dir);
+    mat4_make (m,
+                  s[0],    s[1],    s[2], 0,
+                  u[0],    u[1],    u[2], 0,
+               -dir[0], -dir[1], -dir[2], 0,
+                     0,       0,       0, 1);
 }
 
 static inline void
-matrix_mult (GLfloat *m, GLfloat *a, GLfloat *b)
+mat4_mult (GLfloat *m, GLfloat *a, GLfloat *b)
 {
     for (int row = 0; row < 4; row++) {
         for (int col = 0; col < 4; col++) {
@@ -227,7 +228,7 @@ matrix_mult (GLfloat *m, GLfloat *a, GLfloat *b)
 }
 
 static inline void
-matrix_mult_v (GLfloat *v, GLfloat *m, GLfloat *a)
+mat4_mult_vec3 (GLfloat *v, GLfloat *m, GLfloat *a)
 {
     for (int col = 0; col < 4; col++) {
         v[col] = 0;
@@ -237,12 +238,12 @@ matrix_mult_v (GLfloat *v, GLfloat *m, GLfloat *a)
 }
 
 static inline void
-matrix_make_translate (GLfloat *m,
-                       GLfloat x, GLfloat y, GLfloat z)
+mat4_make_translate (GLfloat *m,
+                     GLfloat x, GLfloat y, GLfloat z)
 {
-    matrix_make (m,
-                 1, 0, 0, x,
-                 0, 1, 0, y,
-                 0, 0, 1, z,
-                 0, 0, 0, 1);
+    mat4_make (m,
+               1, 0, 0, x,
+               0, 1, 0, y,
+               0, 0, 1, z,
+               0, 0, 0, 1);
 }

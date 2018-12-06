@@ -414,14 +414,14 @@ pv_renderer_render (PvRenderer *self,
     if (x > self->west) {
         GLfloat normal[3] = { -1, 0, 0 };
         glUniform3f (normal_location, normal[0], normal[1], normal[2]);
-        glUniform1f (shade_location, MAX (vector_dot (light_direction, normal), 0.2));
+        glUniform1f (shade_location, MAX (vec3_dot (light_direction, normal), 0.2));
         glDrawElements (GL_TRIANGLES, self->east_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->east_offset * 3 * 4));
         n_triangles += self->east_size;
     }
     if (x < self->east) {
         GLfloat normal[3] = { 1, 0, 0 };
         glUniform3f (normal_location, normal[0], normal[1], normal[2]);
-        glUniform1f (shade_location, MAX (vector_dot (light_direction, normal), 0.2));
+        glUniform1f (shade_location, MAX (vec3_dot (light_direction, normal), 0.2));
         glDrawElements (GL_TRIANGLES, self->west_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->west_offset * 3 * 4));
         n_triangles += self->west_size;
     }
@@ -429,14 +429,14 @@ pv_renderer_render (PvRenderer *self,
     if (y > self->south) {
         GLfloat normal[3] = { 0, -1, 0 };
         glUniform3f (normal_location, normal[0], normal[1], normal[2]);
-        glUniform1f (shade_location, MAX (vector_dot (light_direction, normal), 0.2));
+        glUniform1f (shade_location, MAX (vec3_dot (light_direction, normal), 0.2));
         glDrawElements (GL_TRIANGLES, self->north_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->north_offset * 3 * 4));
         n_triangles += self->north_size;
     }
     if (y < self->north) {
         GLfloat normal[3] = { 0, 1, 0 };
         glUniform3f (normal_location, normal[0], normal[1], normal[2]);
-        glUniform1f (shade_location, MAX (vector_dot (light_direction, normal), 0.2));
+        glUniform1f (shade_location, MAX (vec3_dot (light_direction, normal), 0.2));
         glDrawElements (GL_TRIANGLES, self->south_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->south_offset * 3 * 4));
         n_triangles += self->south_size;
     }
@@ -444,14 +444,14 @@ pv_renderer_render (PvRenderer *self,
     if (z > self->bottom) {
         GLfloat normal[3] = { 0, 0, -1 };
         glUniform3f (normal_location, normal[0], normal[1], normal[2]);
-        glUniform1f (shade_location, MAX (vector_dot (light_direction, normal), 0.2));
+        glUniform1f (shade_location, MAX (vec3_dot (light_direction, normal), 0.2));
         glDrawElements (GL_TRIANGLES, self->top_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->top_offset * 3 * 4));
         n_triangles += self->top_size;
     }
     if (z < self->top) {
         GLfloat normal[3] = { 0, 0, 1 };
         glUniform3f (normal_location, normal[0], normal[1], normal[2]);
-        glUniform1f (shade_location, MAX (vector_dot (light_direction, normal), 0.2));
+        glUniform1f (shade_location, MAX (vec3_dot (light_direction, normal), 0.2));
         glDrawElements (GL_TRIANGLES, self->bottom_size * 3, GL_UNSIGNED_INT, (const GLvoid *) (self->bottom_offset * 3 * 4));
         n_triangles += self->bottom_size;
     }

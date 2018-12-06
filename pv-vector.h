@@ -14,10 +14,10 @@
 #pragma once
 
 static inline void
-vector_make (GLfloat *v,
-             GLfloat  x,
-             GLfloat  y,
-             GLfloat  z)
+vec3_make (GLfloat *v,
+           GLfloat  x,
+           GLfloat  y,
+           GLfloat  z)
 {
     v[0] = x;
     v[1] = y;
@@ -25,8 +25,8 @@ vector_make (GLfloat *v,
 }
 
 static inline void
-vector_copy (GLfloat *v,
-             GLfloat *a)
+vec3_copy (GLfloat *v,
+           GLfloat *a)
 {
     v[0] = a[0];
     v[1] = a[1];
@@ -34,7 +34,7 @@ vector_copy (GLfloat *v,
 }
 
 static inline void
-vector_normalize (GLfloat *v)
+vec3_normalize (GLfloat *v)
 {
     GLfloat l = sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
     if (l == 0)
@@ -45,18 +45,27 @@ vector_normalize (GLfloat *v)
 }
 
 static inline GLfloat
-vector_dot (GLfloat *a, GLfloat *b)
+vec3_dot (GLfloat *a,
+          GLfloat *b)
 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 static inline void
-vector_cross (GLfloat *v,
-              GLfloat *a,
-              GLfloat *b)
+vec3_add (GLfloat *v, GLfloat *a, GLfloat *b)
 {
-    vector_make (v,
-                 a[1]*b[2] - a[2]*b[1],
-                 a[2]*b[0] - a[0]*b[2],
-                 a[0]*b[1] - a[1]*b[0]);
+    v[0] = a[0] + b[0];
+    v[1] = a[1] + b[1];
+    v[2] = a[2] + b[2];
+}
+
+static inline void
+vec3_cross (GLfloat *v,
+            GLfloat *a,
+            GLfloat *b)
+{
+    vec3_make (v,
+               a[1]*b[2] - a[2]*b[1],
+               a[2]*b[0] - a[0]*b[2],
+               a[0]*b[1] - a[1]*b[0]);
 }
