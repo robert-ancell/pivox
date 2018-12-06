@@ -432,7 +432,7 @@ pv_renderer_render (PvRenderer *self,
     pv_camera_transform (self->camera, width, height, v_location, vp_location);
 
     GLint normal_location = glGetUniformLocation (self->program, "Normal");
-    GLint shade_location = glGetUniformLocation (self->program, "ShadeLevel");
+    GLint shade_location = glGetUniformLocation (self->program, "Shade");
 
     glBindVertexArray (self->vao);
 
