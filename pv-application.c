@@ -43,7 +43,8 @@ load_map (PvApplication *self)
         g_autofree gchar *name = g_strdup_printf ("%d", i);
         g_autoptr(PvBlockType) block_type = pv_block_type_new (name);
         PvVoxMaterial *material = pv_vox_file_get_material (vox_file, i);
-        pv_block_type_set_color (block_type, material->r / 255.0f, material->g / 255.0f, material->b / 255.0f);
+        gfloat color[3] = { material->r / 255.0f, material->g / 255.0f, material->b / 255.0f };
+        pv_block_type_set_color (block_type, color);
         pv_map_add_block_type (self->map, block_type);
         g_ptr_array_add (block_types, g_object_ref (block_type));
     }

@@ -19,11 +19,7 @@ PvBlockType *pv_block_type_new       (const gchar *name);
 const gchar *pv_block_type_get_name  (PvBlockType *type);
 
 void         pv_block_type_set_color (PvBlockType *type,
-                                      gdouble      r,
-                                      gdouble      g,
-                                      gdouble      b);
+                                      gfloat      *color);
 
 void         pv_block_type_get_color (PvBlockType *type,
-                                      gdouble     *r,
-                                      gdouble     *g,
-                                      gdouble     *b);
+                                      gfloat      *color);

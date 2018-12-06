@@ -15,9 +15,9 @@ struct _PvBlockType
     GObject parent_instance;
 
     gchar  *name;
-    gdouble r;
-    gdouble g;
-    gdouble b;
+    gfloat  r;
+    gfloat  g;
+    gfloat  b;
 };
 
 G_DEFINE_TYPE (PvBlockType, pv_block_type, G_TYPE_OBJECT)
@@ -64,29 +64,24 @@ pv_block_type_get_name (PvBlockType *self)
 
 void
 pv_block_type_set_color (PvBlockType *self,
-                         gdouble      r,
-                         gdouble      g,
-                         gdouble      b)
+                         gfloat      *color)
 {
     g_return_if_fail (PV_IS_BLOCK_TYPE (self));
 
-    self->r = r;
-    self->g = g;
-    self->b = b;
+    self->r = color[0];
+    self->g = color[1];
+    self->b = color[2];
 }
 
 void
 pv_block_type_get_color (PvBlockType *self,
-                         gdouble     *r,
-                         gdouble     *g,
-                         gdouble     *b)
+                         gfloat      *color)
 {
     g_return_if_fail (PV_IS_BLOCK_TYPE (self));
 
-    if (r != NULL)
-        *r = self->r;
-    if (g != NULL)
-        *g = self->g;
-    if (b != NULL)
-        *b = self->b;
+    if (color != NULL) {
+        color[0] = self->r;
+        color[1] = self->g;
+        color[2] = self->b;
+    }
 }
