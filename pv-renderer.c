@@ -94,33 +94,64 @@ add_uint (GArray *vertices,
     g_array_append_val (vertices, value);
 }
 
+static GLfloat
+ambient_shade (PvMap   *map,
+               GLfloat *pos)
+{
+    int n_around = 0;
+    if (pv_map_get_block (map, pos[0], pos[1], pos[2]) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0] - 1, pos[1], pos[2]) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0] - 1, pos[1] - 1, pos[2]) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0], pos[1] - 1, pos[2]) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0], pos[1], pos[2] - 1) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0] - 1, pos[1], pos[2] - 1) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0] - 1, pos[1] - 1, pos[2] - 1) != NULL)
+       n_around++;
+    if (pv_map_get_block (map, pos[0], pos[1] - 1, pos[2] - 1) != NULL)
+       n_around++;
+
+    // FIXME: Work out concaveness properly
+    return n_around > 4 ? 0.5f : 1.0f;
+}
+
 static void
-add_square (GArray  *vertices,
+add_square (PvMap   *map,
+            GArray  *vertices,
             GArray  *triangles,
             GLfloat *a,
             GLfloat *v0,
             GLfloat *v1,
             GLfloat *color)
 {
-    guint start = vertices->len / 6;
+    guint start = vertices->len / 7;
 
     add_vec3 (vertices, a);
     add_vec3 (vertices, color);
+    add_float (vertices, ambient_shade (map, a));
 
     GLfloat b[4];
     vec3_add (b, a, v0);
     add_vec3 (vertices, b);
     add_vec3 (vertices, color);
+    add_float (vertices, ambient_shade (map, b));
 
     GLfloat c[4];
     vec3_add (c, b, v1);
     add_vec3 (vertices, c);
     add_vec3 (vertices, color);
+    add_float (vertices, ambient_shade (map, c));
 
     GLfloat d[4];
     vec3_add (d, a, v1);
     add_vec3 (vertices, d);
     add_vec3 (vertices, color);
+    add_float (vertices, ambient_shade (map, d));
 
     add_uint (triangles, start + 0);
     add_uint (triangles, start + 1);
@@ -168,7 +199,7 @@ setup (PvRenderer *self)
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 gfloat color[3];
                 pv_block_type_get_color (type, color);
-                add_square (vertices, triangles, top_pos, south, down, color);
+                add_square (self->map, vertices, triangles, top_pos, south, down, color);
                 self->north_size += 2;
                 if (y + 1 > self->north)
                     self->north = y + 1;
@@ -189,7 +220,7 @@ setup (PvRenderer *self)
                 GLfloat base_pos[3] = { x, y, z };
                 gfloat color[3];
                 pv_block_type_get_color (type, color);
-                add_square (vertices, triangles, base_pos, up, north, color);
+                add_square (self->map, vertices, triangles, base_pos, up, north, color);
                 self->south_size += 2;
                 if (y < self->south)
                     self->south = y;
@@ -210,7 +241,7 @@ setup (PvRenderer *self)
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 gfloat color[3];
                 pv_block_type_get_color (type, color);
-                add_square (vertices, triangles, top_pos, down, west, color);
+                add_square (self->map, vertices, triangles, top_pos, down, west, color);
                 self->east_size += 2;
                 if (x > self->east)
                     self->east = x;
@@ -231,7 +262,7 @@ setup (PvRenderer *self)
                 GLfloat base_pos[3] = { x, y, z };
                 gfloat color[3];
                 pv_block_type_get_color (type, color);
-                add_square (vertices, triangles, base_pos, east, up, color);
+                add_square (self->map, vertices, triangles, base_pos, east, up, color);
                 self->west_size += 2;
                 if (x < self->west)
                     self->west = x;
@@ -252,7 +283,7 @@ setup (PvRenderer *self)
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
                 gfloat color[3];
                 pv_block_type_get_color (type, color);
-                add_square (vertices, triangles, top_pos, west, south, color);
+                add_square (self->map, vertices, triangles, top_pos, west, south, color);
                 self->top_size += 2;
                 if (z + 1 > self->top)
                     self->top = z + 1;
@@ -273,7 +304,7 @@ setup (PvRenderer *self)
                 GLfloat base_pos[3] = { x, y, z };
                 gfloat color[3];
                 pv_block_type_get_color (type, color);
-                add_square (vertices, triangles, base_pos, north, east, color);
+                add_square (self->map, vertices, triangles, base_pos, north, east, color);
                 self->bottom_size += 2;
                 if (z < self->bottom)
                     self->bottom = z;
@@ -308,10 +339,13 @@ setup (PvRenderer *self)
 
     GLint position_attr = glGetAttribLocation (self->program, "position");
     glEnableVertexAttribArray (position_attr);
-    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 24, 0);
+    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 28, (void *)0);
     GLint color_attr = glGetAttribLocation (self->program, "color");
     glEnableVertexAttribArray (color_attr);
-    glVertexAttribPointer (color_attr, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
+    glVertexAttribPointer (color_attr, 3, GL_FLOAT, GL_FALSE, 28, (void*)12);
+    GLint shade_attr = glGetAttribLocation (self->program, "shade");
+    glEnableVertexAttribArray (shade_attr);
+    glVertexAttribPointer (shade_attr, 1, GL_FLOAT, GL_FALSE, 28, (void*)24);
 
     const gchar *renderer = (gchar *) glGetString (GL_RENDERER);
     g_printerr ("renderer: %s\n", renderer);
