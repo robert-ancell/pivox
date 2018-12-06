@@ -52,11 +52,23 @@ vec3_dot (GLfloat *a,
 }
 
 static inline void
-vec3_add (GLfloat *v, GLfloat *a, GLfloat *b)
+vec3_add (GLfloat *v,
+          GLfloat *a,
+          GLfloat *b)
 {
     v[0] = a[0] + b[0];
     v[1] = a[1] + b[1];
     v[2] = a[2] + b[2];
+}
+
+static inline void
+vec3_mult (GLfloat *v,
+           GLfloat *a,
+           GLfloat b)
+{
+    v[0] = a[0] * b;
+    v[1] = a[1] * b;
+    v[2] = a[2] * b;
 }
 
 static inline void

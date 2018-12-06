@@ -2,7 +2,6 @@
 
 attribute vec3 position;
 attribute vec3 color;
-attribute float shade;
 
 out vec3 Color;
 
@@ -13,6 +12,6 @@ uniform float Shade;
 
 void main ()
 {
-   Color = color * shade * Shade;
+   Color = color * Shade;
    gl_Position = ViewProjectionMatrix * vec4 (position.xyz, 1.0);
 };

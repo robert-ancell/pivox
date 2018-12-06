@@ -127,31 +127,32 @@ add_square (PvMap   *map,
             GLfloat *a,
             GLfloat *v0,
             GLfloat *v1,
-            GLfloat *color)
+            GLfloat *face_color)
 {
-    guint start = vertices->len / 7;
+    guint start = vertices->len / 6;
 
     add_vec3 (vertices, a);
-    add_vec3 (vertices, color);
-    add_float (vertices, ambient_shade (map, a));
+    GLfloat color[3];
+    vec3_mult (color, face_color, ambient_shade (map, a));
+    add_vec3 (vertices, face_color);
 
-    GLfloat b[4];
+    GLfloat b[3];
     vec3_add (b, a, v0);
     add_vec3 (vertices, b);
+    vec3_mult (color, face_color, ambient_shade (map, b));
     add_vec3 (vertices, color);
-    add_float (vertices, ambient_shade (map, b));
 
-    GLfloat c[4];
+    GLfloat c[3];
     vec3_add (c, b, v1);
     add_vec3 (vertices, c);
+    vec3_mult (color, face_color, ambient_shade (map, c));
     add_vec3 (vertices, color);
-    add_float (vertices, ambient_shade (map, c));
 
-    GLfloat d[4];
+    GLfloat d[3];
     vec3_add (d, a, v1);
     add_vec3 (vertices, d);
+    vec3_mult (color, face_color, ambient_shade (map, d));
     add_vec3 (vertices, color);
-    add_float (vertices, ambient_shade (map, d));
 
     add_uint (triangles, start + 0);
     add_uint (triangles, start + 1);
@@ -339,13 +340,10 @@ setup (PvRenderer *self)
 
     GLint position_attr = glGetAttribLocation (self->program, "position");
     glEnableVertexAttribArray (position_attr);
-    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 28, (void *)0);
+    glVertexAttribPointer (position_attr, 3, GL_FLOAT, GL_FALSE, 24, (void *)0);
     GLint color_attr = glGetAttribLocation (self->program, "color");
     glEnableVertexAttribArray (color_attr);
-    glVertexAttribPointer (color_attr, 3, GL_FLOAT, GL_FALSE, 28, (void*)12);
-    GLint shade_attr = glGetAttribLocation (self->program, "shade");
-    glEnableVertexAttribArray (shade_attr);
-    glVertexAttribPointer (shade_attr, 1, GL_FLOAT, GL_FALSE, 28, (void*)24);
+    glVertexAttribPointer (color_attr, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
 
     const gchar *renderer = (gchar *) glGetString (GL_RENDERER);
     g_printerr ("renderer: %s\n", renderer);
