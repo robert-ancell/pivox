@@ -44,4 +44,5 @@ void      pv_camera_set_target    (PvCamera *camera,
 void      pv_camera_transform     (PvCamera *camera,
                                    gint      width,
                                    gint      height,
-                                   gint      uniform_location);
+                                   gint      v_location,
+                                   gint      vp_location);

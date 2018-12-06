@@ -12,6 +12,7 @@
 #include <math.h>
 
 #include "pv-camera.h"
+#include "pv-vector.h"
 
 struct _PvCamera
 {
@@ -23,48 +24,6 @@ struct _PvCamera
 };
 
 G_DEFINE_TYPE (PvCamera, pv_camera, G_TYPE_OBJECT)
-
-static void
-vector_make (GLfloat *v,
-             GLfloat  x,
-             GLfloat  y,
-             GLfloat  z)
-{
-    v[0] = x;
-    v[1] = y;
-    v[2] = z;
-}
-
-static void
-vector_copy (GLfloat *v,
-             GLfloat *a)
-{
-    v[0] = a[0];
-    v[1] = a[1];
-    v[2] = a[2];
-}
-
-static void
-vector_normalize (GLfloat *v)
-{
-    GLfloat l = sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-    if (l == 0)
-        return;
-    v[0] /= l;
-    v[1] /= l;
-    v[2] /= l;
-}
-
-static void
-vector_cross (GLfloat *v,
-              GLfloat *a,
-              GLfloat *b)
-{
-    vector_make (v,
-                 a[1]*b[2] - a[2]*b[1],
-                 a[2]*b[0] - a[0]*b[2],
-                 a[0]*b[1] - a[1]*b[0]);
-}
 
 static void
 matrix_make (GLfloat *m,
@@ -90,6 +49,146 @@ matrix_make (GLfloat *m,
     m[14] = v23;
     m[15] = v33;
 }
+
+/*static void
+matrix_transpose (GLfloat *m, GLfloat *a)
+{
+    matrix_make (m,
+                 a[0], a[4], a[ 8], a[12],
+                 a[1], a[5], a[ 9], a[13],
+                 a[2], a[6], a[10], a[14],
+                 a[3], a[7], a[11], a[15]);
+}*/
+
+/*static gboolean
+matrix_invert (GLfloat *m, GLfloat *a)
+{
+    GLfloat inv[16], det;
+    int i;
+
+    inv[0] = a[5]  * a[10] * a[15] -
+             a[5]  * a[11] * a[14] -
+             a[9]  * a[6]  * a[15] +
+             a[9]  * a[7]  * a[14] +
+             a[13] * a[6]  * a[11] -
+             a[13] * a[7]  * a[10];
+
+    inv[4] = -a[4]  * a[10] * a[15] +
+              a[4]  * a[11] * a[14] +
+              a[8]  * a[6]  * a[15] -
+              a[8]  * a[7]  * a[14] -
+              a[12] * a[6]  * a[11] +
+              a[12] * a[7]  * a[10];
+
+    inv[8] = a[4]  * a[9] * a[15] -
+             a[4]  * a[11] * a[13] -
+             a[8]  * a[5] * a[15] +
+             a[8]  * a[7] * a[13] +
+             a[12] * a[5] * a[11] -
+             a[12] * a[7] * a[9];
+
+    inv[12] = -a[4]  * a[9] * a[14] +
+               a[4]  * a[10] * a[13] +
+               a[8]  * a[5] * a[14] -
+               a[8]  * a[6] * a[13] -
+               a[12] * a[5] * a[10] +
+               a[12] * a[6] * a[9];
+
+    inv[1] = -a[1]  * a[10] * a[15] +
+              a[1]  * a[11] * a[14] +
+              a[9]  * a[2] * a[15] -
+              a[9]  * a[3] * a[14] -
+              a[13] * a[2] * a[11] +
+              a[13] * a[3] * a[10];
+
+    inv[5] = a[0]  * a[10] * a[15] -
+             a[0]  * a[11] * a[14] -
+             a[8]  * a[2] * a[15] +
+             a[8]  * a[3] * a[14] +
+             a[12] * a[2] * a[11] -
+             a[12] * a[3] * a[10];
+
+    inv[9] = -a[0]  * a[9] * a[15] +
+              a[0]  * a[11] * a[13] +
+              a[8]  * a[1] * a[15] -
+              a[8]  * a[3] * a[13] -
+              a[12] * a[1] * a[11] +
+              a[12] * a[3] * a[9];
+
+    inv[13] = a[0]  * a[9] * a[14] -
+              a[0]  * a[10] * a[13] -
+              a[8]  * a[1] * a[14] +
+              a[8]  * a[2] * a[13] +
+              a[12] * a[1] * a[10] -
+              a[12] * a[2] * a[9];
+
+    inv[2] = a[1]  * a[6] * a[15] -
+             a[1]  * a[7] * a[14] -
+             a[5]  * a[2] * a[15] +
+             a[5]  * a[3] * a[14] +
+             a[13] * a[2] * a[7] -
+             a[13] * a[3] * a[6];
+
+    inv[6] = -a[0]  * a[6] * a[15] +
+              a[0]  * a[7] * a[14] +
+              a[4]  * a[2] * a[15] -
+              a[4]  * a[3] * a[14] -
+              a[12] * a[2] * a[7] +
+              a[12] * a[3] * a[6];
+
+    inv[10] = a[0]  * a[5] * a[15] -
+              a[0]  * a[7] * a[13] -
+              a[4]  * a[1] * a[15] +
+              a[4]  * a[3] * a[13] +
+              a[12] * a[1] * a[7] -
+              a[12] * a[3] * a[5];
+
+    inv[14] = -a[0]  * a[5] * a[14] +
+               a[0]  * a[6] * a[13] +
+               a[4]  * a[1] * a[14] -
+               a[4]  * a[2] * a[13] -
+               a[12] * a[1] * a[6] +
+               a[12] * a[2] * a[5];
+
+    inv[3] = -a[1] * a[6] * a[11] +
+              a[1] * a[7] * a[10] +
+              a[5] * a[2] * a[11] -
+              a[5] * a[3] * a[10] -
+              a[9] * a[2] * a[7] +
+              a[9] * a[3] * a[6];
+
+    inv[7] = a[0] * a[6] * a[11] -
+             a[0] * a[7] * a[10] -
+             a[4] * a[2] * a[11] +
+             a[4] * a[3] * a[10] +
+             a[8] * a[2] * a[7] -
+             a[8] * a[3] * a[6];
+
+    inv[11] = -a[0] * a[5] * a[11] +
+               a[0] * a[7] * a[9] +
+               a[4] * a[1] * a[11] -
+               a[4] * a[3] * a[9] -
+               a[8] * a[1] * a[7] +
+               a[8] * a[3] * a[5];
+
+    inv[15] = a[0] * a[5] * a[10] -
+              a[0] * a[6] * a[9] -
+              a[4] * a[1] * a[10] +
+              a[4] * a[2] * a[9] +
+              a[8] * a[1] * a[6] -
+              a[8] * a[2] * a[5];
+
+    det = a[0] * inv[0] + a[1] * inv[4] + a[2] * inv[8] + a[3] * inv[12];
+
+    if (det == 0)
+        return FALSE;
+
+    det = 1.0 / det;
+    for (i = 0; i < 16; i++)
+        m[i] = inv[i] * det;
+
+    return TRUE;
+}*/
 
 static void
 matrix_make_projection (GLfloat *m,
@@ -136,6 +235,16 @@ matrix_mult (GLfloat *m, GLfloat *a, GLfloat *b)
         }
     }
 }
+
+/*static void
+matrix_mult_v (GLfloat *v, GLfloat *m, GLfloat *a)
+{
+    for (int col = 0; col < 4; col++) {
+        v[col] = 0;
+        for (int row = 0; row < 4; row++)
+            v[col] += m[col * 4 + row] * a[row];
+    }
+}*/
 
 static void
 matrix_make_translate (GLfloat *m,
@@ -249,25 +358,29 @@ void
 pv_camera_transform (PvCamera *self,
                      gint      width,
                      gint      height,
-                     gint      uniform_location)
+                     gint      v_location,
+                     gint      vp_location)
 {
     g_return_if_fail (PV_IS_CAMERA (self));
 
-    GLfloat proj[16];
-    matrix_make_projection (proj, M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f);
-
     GLfloat trans[16];
     matrix_make_translate (trans, -self->pos[0], -self->pos[1], -self->pos[2]);
+
     GLfloat rot[16];
     GLfloat up[3];
     vector_make (up, 0, 0, 1);
     GLfloat dir[3];
     get_direction (self, dir);
     matrix_make_direction (rot, dir, up);
-    GLfloat t[16];
-    matrix_mult (t, proj, rot);
-    GLfloat mvp[16];
-    matrix_mult (mvp, t, trans);
 
-    glUniformMatrix4fv (uniform_location, 1, GL_TRUE, mvp);
+    GLfloat v[16];
+    matrix_mult (v, rot, trans);
+    glUniformMatrix4fv (v_location, 1, GL_TRUE, v);
+
+    GLfloat proj[16];
+    matrix_make_projection (proj, M_PI / 3.0f, (GLfloat) width / height, 0.1f, 100.0f);
+
+    GLfloat vp[16];
+    matrix_mult (vp, proj, v);
+    glUniformMatrix4fv (vp_location, 1, GL_TRUE, vp);
 }

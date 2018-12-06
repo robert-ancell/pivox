@@ -3,12 +3,15 @@
 attribute vec3 position;
 attribute vec3 color;
 
+out vec3 Vertex;
 out vec3 Color;
 
-uniform mat4 MVP;
+uniform vec3 Normal;
+uniform mat4 ViewMatrix;
+uniform mat4 ViewProjectionMatrix;
 
 void main ()
 {
-   gl_Position = MVP * vec4 (position.xyz, 1.0);
    Color = color;
+   gl_Position = ViewProjectionMatrix * vec4 (position.xyz, 1.0);
 };
