@@ -409,7 +409,7 @@ pv_renderer_render (PvRenderer *self,
     GLfloat x, y, z;
     pv_camera_get_position (self->camera, &x, &y, &z);
 
-    GLfloat light_direction[3] = { 1, 1, 1 };
+    GLfloat light_direction[3] = { 1, 1, -1 };
 
     if (x > self->west) {
         GLfloat normal[3] = { -1, 0, 0 };
