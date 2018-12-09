@@ -5,6 +5,7 @@ gnome = import ('gnome')
 
 epoxy_dep = dependency ('epoxy')
 gtk_dep = dependency ('gtk+-3.0')
+json_glib_dep = dependency ('json-glib-1.0')
 m_dep = cc.find_library ('m', required: false)
 
 resources = gnome.compile_resources ('pv-resources',
@@ -17,10 +18,11 @@ executable ('pivox',
               'pv-block-type.c',
               'pv-camera.c',
               'pv-map.c',
+              'pv-map-file.c',
               'pv-renderer.c',
               'pv-vox-file.c',
               'pv-window.c',
               'main.c',
             ] + resources,
-            dependencies: [ epoxy_dep, gtk_dep, m_dep ],
+            dependencies: [ epoxy_dep, gtk_dep, json_glib_dep, m_dep ],
             install: true)

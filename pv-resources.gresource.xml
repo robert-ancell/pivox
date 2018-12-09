@@ -9,5 +9,6 @@
   </gresource>
   <gresource prefix="/com/example/pivox">
     <file>map.vox</file>
+    <file>map.pivox</file>
   </gresource>
 </gresources>
