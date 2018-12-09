@@ -742,9 +742,10 @@ pv_vox_file_decode (PvVoxFile    *self,
     gsize offset = 0;
 
     guint32 id;
-    if (!read_uint (self->data, self->data_length, &offset, &id, error) ||
+    g_autoptr(GError) local_error = NULL;
+    if (!read_uint (self->data, self->data_length, &offset, &id, &local_error) ||
         id != id_to_uint ("VOX ") ||
-        !read_uint (self->data, self->data_length, &offset, &self->version, error)) {
+        !read_uint (self->data, self->data_length, &offset, &self->version, &local_error)) {
         g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                              "Not a MagicaVoxel file");
         return FALSE;
