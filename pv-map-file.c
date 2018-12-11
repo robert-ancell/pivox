@@ -398,6 +398,25 @@ pv_map_file_get_blocks (PvMapFile *self,
                        fill_blocks[((z - fill_z) * fill_height + (y - fill_y)) * fill_width + (x - fill_x)] = block;
                    }
         }
+        else if (g_strcmp0 (type, "coord8.8") == 0) {
+            gint64 data_block_index = json_object_get_int_member (area, "data");
+            g_assert (data_block_index >= 0);
+            g_assert (data_block_index < self->data_blocks->len);
+            GBytes *data_block = g_ptr_array_index (self->data_blocks, data_block_index);
+            gsize data_length;
+            const guint8 *data = g_bytes_get_data (data_block, &data_length);
+            g_assert (data_length % 4 == 0);
+            // FIXME "compression"
+            gsize offset = 0;
+            while (offset < data_length) {
+                guint8 x = data[offset * 4 + 0] + area_x - fill_x;
+                guint8 y = data[offset * 4 + 1] + area_y - fill_y;
+                guint8 z = data[offset * 4 + 2] + area_z - fill_z;
+                guint8 block = data[offset * 4 + 3];
+                fill_blocks[(z * fill_height + y) * fill_width + x] = block;
+                offset += 4;
+            }
+        }
         else
             g_warning ("Ignoring unknown area type '%s'", type);
     }
