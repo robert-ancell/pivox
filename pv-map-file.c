@@ -373,6 +373,16 @@ pv_map_file_get_blocks (PvMapFile *self,
         guint64 z0 = MAX (fill_z, area_z);
         guint64 z1 = MIN (fill_z + fill_depth, area_z + area_depth);
 
+        const guint8 *data = NULL;
+        gsize data_length;
+        if (json_object_has_member (area, "data")) {
+            gint64 data_block_index = json_object_get_int_member (area, "data");
+            g_assert (data_block_index >= 0);
+            g_assert (data_block_index < self->data_blocks->len);
+            GBytes *data_block = g_ptr_array_index (self->data_blocks, data_block_index);
+            data = g_bytes_get_data (data_block, &data_length);
+        }
+
         const gchar *type = json_object_get_string_member (area, "type");
         if (g_strcmp0 (type, "fill") == 0) {
             gint64 block = json_object_get_int_member (area, "block");
@@ -383,29 +393,18 @@ pv_map_file_get_blocks (PvMapFile *self,
                        fill_blocks[((z - fill_z) * fill_height + (y - fill_y)) * fill_width + (x - fill_x)] = block;
         }
         else if (g_strcmp0 (type, "raster8") == 0) {
-            gint64 data_block_index = json_object_get_int_member (area, "data");
-            g_assert (data_block_index >= 0);
-            g_assert (data_block_index < self->data_blocks->len);
-            GBytes *data_block = g_ptr_array_index (self->data_blocks, data_block_index);
-            gsize blocks_length;
-            const guint8 *blocks = g_bytes_get_data (data_block, &blocks_length);
-            g_assert (blocks_length == area_width * area_height * area_depth);
             // FIXME "compression"
             for (guint x = x0; x < x1; x++)
                for (guint y = y0; y < y1; y++)
                    for (guint z = z0; z < z1; z++) {
-                       guint8 block = blocks[(((z - area_z) * area_height) + (y - area_y)) * area_width + (x - area_x)];
+                       gsize offset = (((z - area_z) * area_height) + (y - area_y)) * area_width + (x - area_x);
+                       guint8 block = 0;
+                       if (offset < data_length)
+                           block = data[offset];
                        fill_blocks[((z - fill_z) * fill_height + (y - fill_y)) * fill_width + (x - fill_x)] = block;
                    }
         }
         else if (g_strcmp0 (type, "coord8.8") == 0) {
-            gint64 data_block_index = json_object_get_int_member (area, "data");
-            g_assert (data_block_index >= 0);
-            g_assert (data_block_index < self->data_blocks->len);
-            GBytes *data_block = g_ptr_array_index (self->data_blocks, data_block_index);
-            gsize data_length;
-            const guint8 *data = g_bytes_get_data (data_block, &data_length);
-            g_assert (data_length % 4 == 0);
             // FIXME "compression"
             gsize offset = 0;
             while (offset < data_length) {
