@@ -134,7 +134,7 @@ add_square (PvMap   *map,
     add_vec3 (vertices, a);
     GLfloat color[3];
     vec3_mult (color, face_color, ambient_shade (map, a));
-    add_vec3 (vertices, face_color);
+    add_vec3 (vertices, color);
 
     GLfloat b[3];
     vec3_add (b, a, v0);
