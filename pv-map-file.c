@@ -20,7 +20,11 @@ struct _PvMapFile
     GFile        *file;
 
     JsonObject   *root;
-    GPtrArray    *blocks;
+    GPtrArray    *data_blocks;
+
+    JsonArray    *blocks;
+
+    JsonArray    *areas;
 };
 
 G_DEFINE_TYPE (PvMapFile, pv_map_file, G_TYPE_OBJECT)
@@ -93,7 +97,9 @@ pv_map_file_dispose (GObject *object)
 
     g_clear_object (&self->file);
     g_clear_pointer (&self->root, json_object_unref);
-    g_clear_pointer (&self->blocks, g_ptr_array_unref);
+    g_clear_pointer (&self->data_blocks, g_ptr_array_unref);
+    g_clear_pointer (&self->blocks, json_array_unref);
+    g_clear_pointer (&self->areas, json_array_unref);
 
     G_OBJECT_CLASS (pv_map_file_parent_class)->dispose (object);
 }
@@ -109,7 +115,7 @@ pv_map_file_class_init (PvMapFileClass *klass)
 void
 pv_map_file_init (PvMapFile *self)
 {
-    self->blocks = g_ptr_array_new_with_free_func ((GDestroyNotify) g_bytes_unref);
+    self->data_blocks = g_ptr_array_new_with_free_func ((GDestroyNotify) g_bytes_unref);
 }
 
 PvMapFile *
@@ -181,7 +187,7 @@ pv_map_file_decode (PvMapFile    *self,
         }
         else {
             GBytes *block = g_bytes_new (data + offset, block_length);
-            g_ptr_array_add (self->blocks, block);
+            g_ptr_array_add (self->data_blocks, block);
         }
 
         offset += block_length;
@@ -190,9 +196,15 @@ pv_map_file_decode (PvMapFile    *self,
 
     if (block_count == 0) {
         g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                     "Unable to load Pivox map file: Contains no blocks");
+                     "Unable to load Pivox map file: Contains no data blocks");
         return FALSE;
     }
+
+    if (json_object_has_member (self->root, "blocks"))
+        self->blocks = json_array_ref (json_object_get_array_member (self->root, "blocks"));
+
+    if (json_object_has_member (self->root, "areas"))
+        self->areas = json_array_ref (json_object_get_array_member (self->root, "areas"));
 
     return TRUE;
 }
@@ -244,4 +256,149 @@ pv_map_file_get_author_email (PvMapFile *self)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), NULL);
     return get_string_member (self->root, "author_email", NULL);
+}
+
+gsize
+pv_map_file_get_block_count (PvMapFile *self)
+{
+    g_return_val_if_fail (PV_IS_MAP_FILE (self), 0);
+    return json_array_get_length (self->blocks);
+}
+
+const gchar *
+pv_map_file_get_block_name (PvMapFile *self,
+                            guint16    block_id)
+{
+    g_return_val_if_fail (PV_IS_MAP_FILE (self), NULL);
+    g_return_val_if_fail (block_id < json_array_get_length (self->blocks), NULL);
+
+    JsonObject *block = json_array_get_object_element (self->blocks, block_id);
+    return get_string_member (block, "name", NULL);
+}
+
+static guint8
+parse_hex (gchar c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    else if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    else if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    else
+        return 0;
+}
+
+static void
+parse_rgb (const gchar *color,
+           guint8      *red,
+           guint8      *green,
+           guint8      *blue)
+{
+    *red = *green = *blue = 0;
+
+    if (color == NULL || color[0] != '#')
+        return;
+
+    if (color[1] == '\0' || color[2] == '\0')
+        return;
+    *red = parse_hex (color[1]) << 4 | parse_hex (color[2]);
+
+    if (color[3] == '\0' || color[4] == '\0')
+        return;
+    *green = parse_hex (color[3]) << 4 | parse_hex (color[4]);
+
+    if (color[5] == '\0' || color[6] == '\0')
+        return;
+    *blue = parse_hex (color[5]) << 4 | parse_hex (color[6]);
+}
+
+void
+pv_map_file_get_block_color (PvMapFile *self,
+                             guint16    block_id,
+                             guint8    *red,
+                             guint8    *green,
+                             guint8    *blue)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    g_return_if_fail (block_id < json_array_get_length (self->blocks));
+
+    JsonObject *block = json_array_get_object_element (self->blocks, block_id);
+    const gchar *color = get_string_member (block, "color", NULL);
+    parse_rgb (color, red, green, blue);
+}
+
+void
+pv_map_file_get_blocks (PvMapFile *self,
+                        guint64    fill_x,
+                        guint64    fill_y,
+                        guint64    fill_z,
+                        guint64    fill_width,
+                        guint64    fill_height,
+                        guint64    fill_depth,
+                        guint16   *fill_blocks)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+
+    /* Start with default block */
+    memset (fill_blocks, 0, sizeof (guint16) * fill_width * fill_height * fill_depth);
+
+    if (self->areas == NULL)
+        return;
+
+    guint n_areas = json_array_get_length (self->areas);
+    for (guint i = 0; i < n_areas; i++) {
+        JsonObject *area = json_array_get_object_element (self->areas, i);
+
+        guint64 area_x = get_uint64_member (area, "x", 0);
+        guint64 area_width = get_uint64_member (area, "width", 0);
+        if (area_x > fill_x + fill_width || area_x + area_width < fill_x)
+            continue;
+
+        guint64 area_y = get_uint64_member (area, "y", 0);
+        guint64 area_height = get_uint64_member (area, "height", 0);
+        if (area_y > fill_y + fill_height || area_y + area_height < fill_y)
+            continue;
+
+        guint64 area_z = get_uint64_member (area, "z", 0);
+        guint64 area_depth = get_uint64_member (area, "depth", 0);
+        if (area_z > fill_z + fill_depth || area_z + area_depth < fill_z)
+            continue;
+
+        /* Get overlapping area */
+        guint64 x0 = MAX (fill_x, area_x);
+        guint64 x1 = MIN (fill_x + fill_width, area_x + area_width);
+        guint64 y0 = MAX (fill_y, area_y);
+        guint64 y1 = MIN (fill_y + fill_height, area_y + area_height);
+        guint64 z0 = MAX (fill_z, area_z);
+        guint64 z1 = MIN (fill_z + fill_depth, area_z + area_depth);
+
+        const gchar *type = json_object_get_string_member (area, "type");
+        if (g_strcmp0 (type, "fill") == 0) {
+            gint64 block = json_object_get_int_member (area, "block");
+            g_assert (block < 65536);
+            for (guint x = x0; x < x1; x++)
+               for (guint y = y0; y < y1; y++)
+                   for (guint z = z0; z < z1; z++)
+                       fill_blocks[((z - fill_z) * fill_height + (y - fill_y)) * fill_width + (x - fill_x)] = block;
+        }
+        else if (g_strcmp0 (type, "raster8") == 0) {
+            gint64 data_block_index = json_object_get_int_member (area, "data");
+            g_assert (data_block_index >= 0);
+            g_assert (data_block_index < self->data_blocks->len);
+            GBytes *data_block = g_ptr_array_index (self->data_blocks, data_block_index);
+            gsize blocks_length;
+            const guint8 *blocks = g_bytes_get_data (data_block, &blocks_length);
+            g_assert (blocks_length == area_width * area_height * area_depth);
+            // FIXME "compression"
+            for (guint x = x0; x < x1; x++)
+               for (guint y = y0; y < y1; y++)
+                   for (guint z = z0; z < z1; z++) {
+                       guint8 block = blocks[(((z - area_z) * area_height) + (y - area_y)) * area_width + (x - area_x)];
+                       fill_blocks[((z - fill_z) * fill_height + (y - fill_y)) * fill_width + (x - fill_x)] = block;
+                   }
+        }
+        else
+            g_warning ("Ignoring unknown area type '%s'", type);
+    }
 }

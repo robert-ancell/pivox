@@ -33,3 +33,23 @@ const gchar   *pv_map_file_get_description  (PvMapFile    *file);
 const gchar   *pv_map_file_get_author       (PvMapFile    *file);
 
 const gchar   *pv_map_file_get_author_email (PvMapFile    *file);
+
+const gchar   *pv_map_file_get_block_name   (PvMapFile    *file,
+                                             guint16       block_id);
+
+gsize          pv_map_file_get_block_count  (PvMapFile    *file);
+
+void           pv_map_file_get_block_color  (PvMapFile    *file,
+                                             guint16       block_id,
+                                             guint8       *red,
+                                             guint8       *green,
+                                             guint8       *blue);
+
+void           pv_map_file_get_blocks       (PvMapFile    *file,
+                                             guint64       x,
+                                             guint64       y,
+                                             guint64       z,
+                                             guint64       width,
+                                             guint64       height,
+                                             guint64       depth,
+                                             guint16      *blocks);

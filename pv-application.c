@@ -10,7 +10,7 @@
 
 #include "pv-application.h"
 #include "pv-map.h"
-#include "pv-vox-file.h"
+#include "pv-map-file.h"
 #include "pv-window.h"
 
 struct _PvApplication
@@ -28,34 +28,44 @@ load_map (PvApplication *self)
 {
     g_autoptr(GError) error = NULL;
 
-    g_autoptr(GFile) file = g_file_new_for_uri ("resource:///com/example/pivox/map.vox");
-    g_autoptr(PvVoxFile) vox_file = pv_vox_file_new (file);
-    if (!pv_vox_file_decode (vox_file, NULL, &error)) {
+    g_autoptr(GFile) pivox_file = g_file_new_for_uri ("resource:///com/example/pivox/map.pivox");
+    g_autoptr(PvMapFile) map_file = pv_map_file_new (pivox_file);
+    if (!pv_map_file_decode (map_file, NULL, &error)) {
        g_printerr ("Failed to load map: %s\n", error->message);
        return;
     }
+    g_printerr ("Map name: %s\n", pv_map_file_get_name (map_file));
+    g_printerr ("Map size: %" G_GUINT64_FORMAT "x%" G_GUINT64_FORMAT "x%" G_GUINT64_FORMAT "\n", pv_map_file_get_width (map_file), pv_map_file_get_height (map_file), pv_map_file_get_depth (map_file));
 
-    guint32 size_x, size_y, size_z;
-    pv_vox_file_get_size (vox_file, &size_x, &size_y, &size_z);
-    self->map = pv_map_new (size_x, size_y, size_z);
+    self->map = pv_map_new (pv_map_file_get_width (map_file), pv_map_file_get_height (map_file), pv_map_file_get_depth (map_file));
+
+    gsize n_blocks = pv_map_file_get_block_count (map_file);
     g_autoptr(GPtrArray) block_types = g_ptr_array_new_with_free_func (g_object_unref);
-    for (int i = 1; i < 256; i++) {
-        g_autofree gchar *name = g_strdup_printf ("%d", i);
+    for (gsize i = 0; i < n_blocks; i++) {
+        const gchar *name = pv_map_file_get_block_name (map_file, i);
         g_autoptr(PvBlockType) block_type = pv_block_type_new (name);
-        PvVoxMaterial *material = pv_vox_file_get_material (vox_file, i);
-        gfloat color[3] = { material->r / 255.0f, material->g / 255.0f, material->b / 255.0f };
+
+        guint8 red, green, blue;
+        pv_map_file_get_block_color (map_file, i, &red, &green, &blue);
+        gfloat color[3] = { red / 255.0f, green / 255.0f, blue / 255.0f };
         pv_block_type_set_color (block_type, color);
+
         pv_map_add_block_type (self->map, block_type);
         g_ptr_array_add (block_types, g_object_ref (block_type));
+
+        g_printerr ("Block %zi: %s #%02x%02x%02x\n", i, pv_block_type_get_name (block_type), red, green, blue);
     }
-    if (pv_vox_file_get_model_count (vox_file) > 0) {
-        guint32 voxel_count = pv_vox_file_get_voxel_count (vox_file, 0);
-        for (guint32 i = 0; i < voxel_count; i++) {
-            guint8 x, y, z, color_index;
-            pv_vox_file_get_voxel (vox_file, 0, i, &x, &y, &z, &color_index);
-            pv_map_set_block (self->map, x, y, z, g_ptr_array_index (block_types, color_index));
-        }
-    }
+
+    guint16 blocks[16 * 16 * 16];
+    pv_map_file_get_blocks (map_file, 0, 0, 0, 16, 16, 16, blocks);
+    for (guint64 x = 0; x < 16; x++)
+        for (guint64 y = 0; y < 16; y++)
+            for (guint64 z = 0; z < 16; z++) {
+                guint64 index = ((z * 16) + y) * 16 + x;
+                guint16 block_id = blocks[index];
+                if (block_id != 0)
+                    pv_map_set_block (self->map, x, y, z, g_ptr_array_index (block_types, block_id));
+            }
 }
 
 static void
