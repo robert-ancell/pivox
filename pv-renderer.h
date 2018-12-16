@@ -17,16 +17,18 @@
 
 G_DECLARE_FINAL_TYPE (PvRenderer, pv_renderer, PV, RENDERER, GObject)
 
-PvRenderer *pv_renderer_new        (void);
+PvRenderer  *pv_renderer_new          (void);
 
-void        pv_renderer_set_map    (PvRenderer *renderer,
-                                    PvMap      *map);
+void         pv_renderer_set_map      (PvRenderer *renderer,
+                                       PvMap      *map);
 
-void        pv_renderer_set_camera (PvRenderer *renderer,
-                                    PvCamera   *camera);
+void         pv_renderer_set_camera   (PvRenderer *renderer,
+                                       PvCamera   *camera);
 
-PvCamera   *pv_renderer_get_camera (PvRenderer *renderer);
+PvCamera    *pv_renderer_get_camera   (PvRenderer *renderer);
 
-void        pv_renderer_render     (PvRenderer *renderer,
-                                    guint       width,
-                                    guint       height);
+void         pv_renderer_render       (PvRenderer *renderer,
+                                       guint       width,
+                                       guint       height);
+
+const gchar *pv_renderer_get_renderer (PvRenderer *renderer);

@@ -18,6 +18,8 @@ struct _PvRenderer
 {
     GObject   parent_instance;
 
+    gchar    *gl_renderer;
+
     PvMap    *map;
 
     PvCamera *camera;
@@ -345,8 +347,10 @@ setup (PvRenderer *self)
     glEnableVertexAttribArray (color_attr);
     glVertexAttribPointer (color_attr, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
 
-    const gchar *renderer = (gchar *) glGetString (GL_RENDERER);
-    g_printerr ("renderer: %s\n", renderer);
+    if (self->gl_renderer == NULL) {
+        self->gl_renderer = g_strdup ((gchar *) glGetString (GL_RENDERER));
+        g_printerr ("Renderer: %s\n", self->gl_renderer);
+    }
 }
 
 static void
@@ -354,6 +358,7 @@ pv_renderer_dispose (GObject *object)
 {
     PvRenderer *self = PV_RENDERER (object);
 
+    g_clear_pointer (&self->gl_renderer, g_free);
     g_clear_object (&self->map);
     g_clear_object (&self->camera);
 
@@ -486,4 +491,11 @@ pv_renderer_render (PvRenderer *self,
     }
 
     g_printerr ("Rendered %d triangles\n", n_triangles);
+}
+
+const gchar *
+pv_renderer_get_renderer (PvRenderer *self)
+{
+    g_return_val_if_fail (PV_IS_RENDERER (self), NULL);
+    return self->gl_renderer;
 }
