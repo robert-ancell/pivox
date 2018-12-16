@@ -19,10 +19,6 @@ struct _PvMapFile
 
     JsonObject   *root;
     GPtrArray    *data_blocks;
-
-    JsonArray    *blocks;
-
-    JsonArray    *areas;
 };
 
 G_DEFINE_TYPE (PvMapFile, pv_map_file, G_TYPE_OBJECT)
@@ -36,25 +32,39 @@ id_to_uint (const gchar *id)
 }
 
 static gboolean
-read_uint (guint8  *data,
-           gsize    data_length,
-           gsize   *offset,
-           guint32 *value,
-           GError **error)
+read_uint32 (GInputStream *stream,
+             guint32      *value,
+             GCancellable *cancellable,
+             GError      **error)
 {
-    if (*offset + 4 > data_length) {
+    guint8 buffer[4];
+    gsize n_read;
+    if (!g_input_stream_read_all (stream, buffer, 4, &n_read, cancellable, error))
+        return FALSE;
+
+    if (n_read != 4) {
         g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Not enough data");
         return FALSE;
     }
 
-    if (value != NULL)
-        *value = data[*offset + 3] << 24 |
-                 data[*offset + 2] << 16 |
-                 data[*offset + 1] << 8 |
-                 data[*offset + 0];
-    *offset += 4;
-
+    *value = buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0];
     return TRUE;
+}
+
+static gboolean
+write_uint32 (GOutputStream *stream,
+              guint32        value,
+              GCancellable  *cancellable,
+              GError       **error)
+{
+    guint8 buffer[4];
+
+    buffer[0] = (value >>  0) & 0xFF;
+    buffer[1] = (value >>  8) & 0xFF;
+    buffer[2] = (value >> 16) & 0xFF;
+    buffer[3] = (value >> 24) & 0xFF;
+
+    return g_output_stream_write_all (stream, buffer, 4, NULL, cancellable, error);
 }
 
 gint64
@@ -95,8 +105,6 @@ pv_map_file_dispose (GObject *object)
 
     g_clear_pointer (&self->root, json_object_unref);
     g_clear_pointer (&self->data_blocks, g_ptr_array_unref);
-    g_clear_pointer (&self->blocks, json_array_unref);
-    g_clear_pointer (&self->areas, json_array_unref);
 
     G_OBJECT_CLASS (pv_map_file_parent_class)->dispose (object);
 }
@@ -112,6 +120,7 @@ pv_map_file_class_init (PvMapFileClass *klass)
 void
 pv_map_file_init (PvMapFile *self)
 {
+    self->root = json_object_new ();
     self->data_blocks = g_ptr_array_new_with_free_func ((GDestroyNotify) g_bytes_unref);
 }
 
@@ -123,22 +132,15 @@ pv_map_file_new (void)
 
 gboolean
 pv_map_file_load (PvMapFile    *self,
-                  GFile        *file,
+                  GInputStream *stream,
                   GCancellable *cancellable,
                   GError      **error)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), FALSE);
 
-    g_autofree guint8 *data = NULL;
-    gsize data_length;
-    if (!g_file_load_contents (file, cancellable, (gchar **)&data, &data_length, NULL, error))
-        return FALSE;
-
-    gsize offset = 0;
-
     guint32 id;
     g_autoptr(GError) local_error = NULL;
-    if (!read_uint (data, data_length, &offset, &id, &local_error) ||
+    if (!read_uint32 (stream, &id, cancellable, &local_error) ||
         id != id_to_uint ("PiVx")) {
         g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                              "Not a Pivox map file");
@@ -146,16 +148,29 @@ pv_map_file_load (PvMapFile    *self,
     }
 
     int block_count = 0;
-    while (offset < data_length) {
+    while (TRUE) {
         guint32 block_length;
-        if (!read_uint (data, data_length, &offset, &block_length, error))
+        if (!read_uint32 (stream, &block_length, cancellable, error))
             return FALSE;
 
         /* Terminate on zero length block */
         if (block_length == 0)
             break;
 
-        if (offset + block_length > data_length) {
+        guint8 *block = malloc (block_length);
+        if (block == NULL) {
+            g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                         "Unable to load Pivox map file: Not able to allocate %d octets for block %d", block_length, block_count);
+            return FALSE;
+        }
+
+        gsize n_read;
+        if (!g_input_stream_read_all (stream, block, block_length, &n_read, cancellable, error)) {
+            g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                         "Unable to load Pivox map file: Failed to read block %d: %s", block_count, local_error->message);
+            return FALSE;
+        }
+        if (n_read != block_length) {
             g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                          "Unable to load Pivox map file: Not enough space for block %d", block_count);
             return FALSE;
@@ -164,7 +179,7 @@ pv_map_file_load (PvMapFile    *self,
         if (block_count == 0) {
             g_autoptr(JsonParser) parser = json_parser_new ();
             g_autoptr(GError) local_error = NULL;
-            if (!json_parser_load_from_data (parser, (const gchar *) (data + offset), block_length, &local_error)) {
+            if (!json_parser_load_from_data (parser, (const gchar *) block, block_length, &local_error)) {
                 g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                              "Unable to load Pivox map file: Block 0 does not contain valid JSON data: %s", local_error->message);
                 return FALSE;
@@ -175,14 +190,13 @@ pv_map_file_load (PvMapFile    *self,
                                      "Unable to load Pivox map file: Block 0 does not contain a JSON object");
                 return FALSE;
             }
+            g_clear_pointer (&self->root, json_object_unref);
             self->root = json_node_dup_object (root);
         }
         else {
-            GBytes *block = g_bytes_new (data + offset, block_length);
-            g_ptr_array_add (self->data_blocks, block);
+            g_ptr_array_add (self->data_blocks, g_bytes_new_take (g_steal_pointer (&block), block_length));
         }
 
-        offset += block_length;
         block_count++;
     }
 
@@ -192,13 +206,51 @@ pv_map_file_load (PvMapFile    *self,
         return FALSE;
     }
 
-    if (json_object_has_member (self->root, "blocks"))
-        self->blocks = json_array_ref (json_object_get_array_member (self->root, "blocks"));
+    return TRUE;
+}
 
-    if (json_object_has_member (self->root, "areas"))
-        self->areas = json_array_ref (json_object_get_array_member (self->root, "areas"));
+gboolean
+pv_map_file_save (PvMapFile     *self,
+                  GOutputStream *stream,
+                  GCancellable  *cancellable,
+                  GError       **error)
+{
+    if (!g_output_stream_write_all (stream, "PiVx", 4, NULL, cancellable, error))
+        return FALSE;
+
+    g_autoptr(JsonGenerator) generator = json_generator_new ();
+    g_autoptr(JsonNode) node = json_node_new (JSON_NODE_OBJECT);
+    json_node_set_object (node, self->root);
+    json_generator_set_root (generator, node);
+    json_generator_set_pretty (generator, TRUE);
+    gsize json_data_length;
+    g_autofree gchar *json_data = json_generator_to_data (generator, &json_data_length);
+
+    if (!write_uint32 (stream, json_data_length, cancellable, error) ||
+        !g_output_stream_write_all (stream, json_data, json_data_length, NULL, cancellable, error))
+        return FALSE;
+
+    for (guint i = 0; i < self->data_blocks->len; i++) {
+        GBytes *data_block = g_ptr_array_index (self->data_blocks, i);
+        gsize data_length;
+        gconstpointer data = g_bytes_get_data (data_block, &data_length);
+        if (!write_uint32 (stream, data_length, cancellable, error) ||
+            !g_output_stream_write_all (stream, data, data_length, NULL, cancellable, error))
+            return FALSE;
+    }
+
+    if (!write_uint32 (stream, 0, cancellable, error))
+        return FALSE;
 
     return TRUE;
+}
+
+void
+pv_map_file_set_width (PvMapFile *self,
+                       guint64    width)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_int_member (self->root, "width", width);
 }
 
 guint64
@@ -208,11 +260,27 @@ pv_map_file_get_width (PvMapFile *self)
     return get_uint64_member (self->root, "width", 1);
 }
 
+void
+pv_map_file_set_height (PvMapFile *self,
+                        guint64    height)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_int_member (self->root, "height", height);
+}
+
 guint64
 pv_map_file_get_height (PvMapFile *self)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), 0);
     return get_uint64_member (self->root, "height", 1);
+}
+
+void
+pv_map_file_set_depth (PvMapFile *self,
+                       guint64    depth)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_int_member (self->root, "depth", depth);
 }
 
 guint64
@@ -222,11 +290,27 @@ pv_map_file_get_depth (PvMapFile *self)
     return get_uint64_member (self->root, "depth", 1);
 }
 
+void
+pv_map_file_set_name (PvMapFile   *self,
+                      const gchar *name)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_string_member (self->root, "name", name);
+}
+
 const gchar *
 pv_map_file_get_name (PvMapFile *self)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), NULL);
     return get_string_member (self->root, "name", NULL);
+}
+
+void
+pv_map_file_set_description (PvMapFile   *self,
+                             const gchar *description)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_string_member (self->root, "description", description);
 }
 
 const gchar *
@@ -236,11 +320,27 @@ pv_map_file_get_description (PvMapFile *self)
     return get_string_member (self->root, "description", NULL);
 }
 
+void
+pv_map_file_set_author (PvMapFile   *self,
+                        const gchar *author)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_string_member (self->root, "author", author);
+}
+
 const gchar *
 pv_map_file_get_author (PvMapFile *self)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), NULL);
     return get_string_member (self->root, "author", NULL);
+}
+
+void
+pv_map_file_set_author_email (PvMapFile   *self,
+                              const gchar *author_email)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+    json_object_set_string_member (self->root, "author_email", author_email);
 }
 
 const gchar *
@@ -250,11 +350,37 @@ pv_map_file_get_author_email (PvMapFile *self)
     return get_string_member (self->root, "author_email", NULL);
 }
 
+void
+pv_map_file_add_block (PvMapFile    *self,
+                       const gchar  *name,
+                       guint8        red,
+                       guint8        green,
+                       guint8        blue)
+{
+    g_return_if_fail (PV_IS_MAP_FILE (self));
+}
+
 gsize
 pv_map_file_get_block_count (PvMapFile *self)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), 0);
-    return json_array_get_length (self->blocks);
+
+    if (!json_object_has_member (self->root, "blocks"))
+        return 0;
+
+    return json_array_get_length (json_object_get_array_member (self->root, "blocks"));
+}
+
+JsonObject *
+get_block (PvMapFile *self,
+           guint16    block_id)
+{
+    g_return_val_if_fail (json_object_has_member (self->root, "blocks"), NULL);
+
+    JsonArray *blocks = json_object_get_array_member (self->root, "blocks");
+    g_return_val_if_fail (block_id < json_array_get_length (blocks), NULL);
+
+    return json_array_get_object_element (blocks, block_id);
 }
 
 const gchar *
@@ -262,9 +388,11 @@ pv_map_file_get_block_name (PvMapFile *self,
                             guint16    block_id)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), NULL);
-    g_return_val_if_fail (block_id < json_array_get_length (self->blocks), NULL);
 
-    JsonObject *block = json_array_get_object_element (self->blocks, block_id);
+    JsonObject *block = get_block (self, block_id);
+    if (block == NULL)
+        return NULL;
+
     return get_string_member (block, "name", NULL);
 }
 
@@ -313,9 +441,11 @@ pv_map_file_get_block_color (PvMapFile *self,
                              guint8    *blue)
 {
     g_return_if_fail (PV_IS_MAP_FILE (self));
-    g_return_if_fail (block_id < json_array_get_length (self->blocks));
 
-    JsonObject *block = json_array_get_object_element (self->blocks, block_id);
+    JsonObject *block = get_block (self, block_id);
+    if (block == NULL)
+        return;
+
     const gchar *color = get_string_member (block, "color", NULL);
     parse_rgb (color, red, green, blue);
 }
@@ -335,12 +465,13 @@ pv_map_file_get_blocks (PvMapFile *self,
     /* Start with default block */
     memset (fill_blocks, 0, sizeof (guint16) * fill_width * fill_height * fill_depth);
 
-    if (self->areas == NULL)
+    if (!json_object_has_member (self->root, "areas"))
         return;
 
-    guint n_areas = json_array_get_length (self->areas);
+    JsonArray *areas = json_object_get_array_member (self->root, "areas");
+    guint n_areas = json_array_get_length (areas);
     for (guint i = 0; i < n_areas; i++) {
-        JsonObject *area = json_array_get_object_element (self->areas, i);
+        JsonObject *area = json_array_get_object_element (areas, i);
 
         guint64 area_x = get_uint64_member (area, "x", 0);
         guint64 area_width = get_uint64_member (area, "width", 0);

@@ -28,14 +28,21 @@ load_map (PvApplication *self)
 {
     g_autoptr(GError) error = NULL;
 
-    g_autoptr(GFile) pivox_file = g_file_new_for_uri ("resource:///com/example/pivox/map.pivox");
     g_autoptr(PvMapFile) map_file = pv_map_file_new ();
-    if (!pv_map_file_load (map_file, pivox_file, NULL, &error)) {
-       g_printerr ("Failed to load map: %s\n", error->message);
-       return;
+    g_autoptr(GFile) pivox_file = g_file_new_for_uri ("resource:///com/example/pivox/map.pivox");
+    g_autoptr(GFileInputStream) stream = g_file_read (pivox_file, NULL, &error);
+    if (stream == NULL ||
+        !pv_map_file_load (map_file, G_INPUT_STREAM (stream), NULL, &error)) {
+        g_printerr ("Failed to load map: %s\n", error->message);
+        return;
     }
     g_printerr ("Map name: %s\n", pv_map_file_get_name (map_file));
     g_printerr ("Map size: %" G_GUINT64_FORMAT "x%" G_GUINT64_FORMAT "x%" G_GUINT64_FORMAT "\n", pv_map_file_get_width (map_file), pv_map_file_get_height (map_file), pv_map_file_get_depth (map_file));
+
+    g_autoptr(GFile) f = g_file_new_for_path ("backup.pivox");
+    g_autoptr(GFileOutputStream) s = g_file_replace (f, NULL, TRUE, G_FILE_CREATE_NONE, NULL, &error);
+    if (!pv_map_file_save (map_file, G_OUTPUT_STREAM (s), NULL, &error))
+        g_printerr ("!! %s\n", error->message);
 
     self->map = pv_map_new (pv_map_file_get_width (map_file), pv_map_file_get_height (map_file), pv_map_file_get_depth (map_file));
 
