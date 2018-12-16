@@ -29,8 +29,8 @@ load_map (PvApplication *self)
     g_autoptr(GError) error = NULL;
 
     g_autoptr(GFile) pivox_file = g_file_new_for_uri ("resource:///com/example/pivox/map.pivox");
-    g_autoptr(PvMapFile) map_file = pv_map_file_new (pivox_file);
-    if (!pv_map_file_decode (map_file, NULL, &error)) {
+    g_autoptr(PvMapFile) map_file = pv_map_file_new ();
+    if (!pv_map_file_load (map_file, pivox_file, NULL, &error)) {
        g_printerr ("Failed to load map: %s\n", error->message);
        return;
     }

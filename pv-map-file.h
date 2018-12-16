@@ -14,9 +14,10 @@
 
 G_DECLARE_FINAL_TYPE (PvMapFile, pv_map_file, PV, MAP_FILE, GObject)
 
-PvMapFile     *pv_map_file_new              (GFile        *file);
+PvMapFile     *pv_map_file_new              (void);
 
-gboolean       pv_map_file_decode           (PvMapFile    *file,
+gboolean       pv_map_file_load             (PvMapFile    *file,
+                                             GFile        *file_,
                                              GCancellable *cancellable,
                                              GError      **error);
 

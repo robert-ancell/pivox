@@ -17,8 +17,6 @@ struct _PvMapFile
 {
     GObject       parent_instance;
 
-    GFile        *file;
-
     JsonObject   *root;
     GPtrArray    *data_blocks;
 
@@ -95,7 +93,6 @@ pv_map_file_dispose (GObject *object)
 {
     PvMapFile *self = PV_MAP_FILE (object);
 
-    g_clear_object (&self->file);
     g_clear_pointer (&self->root, json_object_unref);
     g_clear_pointer (&self->data_blocks, g_ptr_array_unref);
     g_clear_pointer (&self->blocks, json_array_unref);
@@ -119,27 +116,22 @@ pv_map_file_init (PvMapFile *self)
 }
 
 PvMapFile *
-pv_map_file_new (GFile *file)
+pv_map_file_new (void)
 {
-    PvMapFile *self;
-
-    self = g_object_new (pv_map_file_get_type (), NULL);
-
-    self->file = g_object_ref (file);
-
-    return self;
+    return g_object_new (pv_map_file_get_type (), NULL);
 }
 
 gboolean
-pv_map_file_decode (PvMapFile    *self,
-                    GCancellable *cancellable,
-                    GError      **error)
+pv_map_file_load (PvMapFile    *self,
+                  GFile        *file,
+                  GCancellable *cancellable,
+                  GError      **error)
 {
     g_return_val_if_fail (PV_IS_MAP_FILE (self), FALSE);
 
     g_autofree guint8 *data = NULL;
     gsize data_length;
-    if (!g_file_load_contents (self->file, cancellable, (gchar **)&data, &data_length, NULL, error))
+    if (!g_file_load_contents (file, cancellable, (gchar **)&data, &data_length, NULL, error))
         return FALSE;
 
     gsize offset = 0;
