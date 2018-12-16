@@ -61,7 +61,7 @@ void           pv_map_set_author_email (PvMap         *map,
 
 const gchar   *pv_map_get_author_email (PvMap         *map);
 
-void           pv_map_add_block        (PvMap         *map,
+guint          pv_map_add_block        (PvMap         *map,
                                         const gchar   *name,
                                         guint8         red,
                                         guint8         green,
@@ -77,6 +77,15 @@ void           pv_map_get_block_color  (PvMap         *map,
                                         guint8        *red,
                                         guint8        *green,
                                         guint8        *blue);
+
+void           pv_map_add_area_raster8 (PvMap         *self,
+                                        guint64        x,
+                                        guint64        y,
+                                        guint64        z,
+                                        guint64        width,
+                                        guint64        height,
+                                        guint64        depth,
+                                        guint8        *blocks);
 
 void           pv_map_get_blocks       (PvMap         *map,
                                         guint64        x,

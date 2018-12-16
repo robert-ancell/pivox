@@ -350,14 +350,32 @@ pv_map_get_author_email (PvMap *self)
     return get_string_member (self->root, "author_email", NULL);
 }
 
-void
+guint
 pv_map_add_block (PvMap       *self,
                   const gchar *name,
                   guint8       red,
                   guint8       green,
                   guint8       blue)
 {
-    g_return_if_fail (PV_IS_MAP (self));
+    g_return_val_if_fail (PV_IS_MAP (self), 0);
+
+    JsonArray *blocks;
+    if (json_object_has_member (self->root, "blocks"))
+        blocks = json_object_get_array_member (self->root, "blocks");
+    else {
+        blocks = json_array_new ();
+        json_object_set_array_member (self->root, "blocks", blocks);
+    }
+
+    JsonObject *block = json_object_new ();
+    json_array_add_object_element (blocks, block);
+
+    if (name != NULL)
+        json_object_set_string_member (block, "name", name);
+    g_autofree gchar *color = g_strdup_printf ("#%02x%02x%02x", red, green, blue);
+    json_object_set_string_member (block, "color", color);
+
+    return pv_map_get_block_count (self) - 1;
 }
 
 gsize
@@ -448,6 +466,42 @@ pv_map_get_block_color (PvMap  *self,
 
     const gchar *color = get_string_member (block, "color", NULL);
     parse_rgb (color, red, green, blue);
+}
+
+void
+pv_map_add_area_raster8 (PvMap  *self,
+                         guint64 x,
+                         guint64 y,
+                         guint64 z,
+                         guint64 width,
+                         guint64 height,
+                         guint64 depth,
+                         guint8 *blocks)
+{
+    g_return_if_fail (PV_IS_MAP (self));
+
+    JsonArray *areas;
+    if (json_object_has_member (self->root, "areas"))
+        areas = json_object_get_array_member (self->root, "areas");
+    else {
+        areas = json_array_new ();
+        json_object_set_array_member (self->root, "areas", areas);
+    }
+
+    JsonObject *area = json_object_new ();
+    json_array_add_object_element (areas, area);
+
+    json_object_set_string_member (area, "type", "raster8");
+    json_object_set_int_member (area, "x", x);
+    json_object_set_int_member (area, "y", y);
+    json_object_set_int_member (area, "z", z);
+    json_object_set_int_member (area, "width", width);
+    json_object_set_int_member (area, "height", height);
+    json_object_set_int_member (area, "depth", depth);
+    json_object_set_int_member (area, "data", self->data_blocks->len);
+    json_object_set_string_member (area, "compression", "none");
+
+    g_ptr_array_add (self->data_blocks, g_bytes_new (blocks, width * height * depth));
 }
 
 void
