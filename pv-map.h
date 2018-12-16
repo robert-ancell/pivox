@@ -10,35 +10,79 @@
 
 #pragma once
 
-#include <glib-object.h>
-
-#include "pv-block-type.h"
+#include <gio/gio.h>
 
 G_DECLARE_FINAL_TYPE (PvMap, pv_map, PV, MAP, GObject)
 
-PvMap       *pv_map_new            (guint        width,
-                                    guint        height,
-                                    guint        depth);
+PvMap     *pv_map_new              (void);
 
-guint        pv_map_get_width      (PvMap       *map);
+gboolean       pv_map_load             (PvMap         *map,
+                                        GInputStream  *stream,
+                                        GCancellable  *cancellable,
+                                        GError       **error);
 
-guint        pv_map_get_height     (PvMap       *map);
+gboolean       pv_map_save             (PvMap         *map,
+                                        GOutputStream *stream,
+                                        GCancellable  *cancellable,
+                                        GError       **error);
 
-guint        pv_map_get_depth      (PvMap       *map);
+void           pv_map_set_width        (PvMap         *map,
+                                        guint64        width);
 
-void         pv_map_add_block_type (PvMap       *map,
-                                    PvBlockType *block_type);
+guint64        pv_map_get_width        (PvMap         *map);
 
-PvBlockType *pv_map_get_block_type (PvMap       *map,
-                                    const gchar *name);
+void           pv_map_set_height       (PvMap         *map,
+                                        guint64        height);
 
-void         pv_map_set_block      (PvMap       *map,
-                                    guint        x,
-                                    guint        y,
-                                    guint        z,
-                                    PvBlockType *type);
+guint64        pv_map_get_height       (PvMap         *map);
 
-PvBlockType *pv_map_get_block      (PvMap       *map,
-                                    guint        x,
-                                    guint        y,
-                                    guint        z);
+void           pv_map_set_depth        (PvMap         *map,
+                                        guint64        depth);
+
+guint64        pv_map_get_depth        (PvMap         *map);
+
+void           pv_map_set_name         (PvMap         *map,
+                                        const gchar   *name);
+
+const gchar   *pv_map_get_name         (PvMap         *map);
+
+void           pv_map_set_description  (PvMap         *map,
+                                        const gchar   *description);
+
+const gchar   *pv_map_get_description  (PvMap         *map);
+
+void           pv_map_set_author       (PvMap         *map,
+                                        const gchar   *author);
+
+const gchar   *pv_map_get_author       (PvMap         *map);
+
+void           pv_map_set_author_email (PvMap         *map,
+                                        const gchar   *author_email);
+
+const gchar   *pv_map_get_author_email (PvMap         *map);
+
+void           pv_map_add_block        (PvMap         *map,
+                                        const gchar   *name,
+                                        guint8         red,
+                                        guint8         green,
+                                        guint8         blue);
+
+gsize          pv_map_get_block_count  (PvMap         *map);
+
+const gchar   *pv_map_get_block_name   (PvMap         *map,
+                                        guint16        block_id);
+
+void           pv_map_get_block_color  (PvMap         *map,
+                                        guint16        block_id,
+                                        guint8        *red,
+                                        guint8        *green,
+                                        guint8        *blue);
+
+void           pv_map_get_blocks       (PvMap         *map,
+                                        guint64        x,
+                                        guint64        y,
+                                        guint64        z,
+                                        guint64        width,
+                                        guint64        height,
+                                        guint64        depth,
+                                        guint16       *blocks);

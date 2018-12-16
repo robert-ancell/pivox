@@ -96,26 +96,38 @@ add_uint (GArray *vertices,
     g_array_append_val (vertices, value);
 }
 
+static guint16
+get_block (gsize width, gsize height, gsize depth, guint16 *blocks, guint x, guint y, guint z)
+{
+    if (x >= width || y >= height || z >= depth)
+        return 0;
+    guint64 index = ((z * 16) + y) * 16 + x;
+    return blocks[index];
+}
+
 static GLfloat
-ambient_shade (PvMap   *map,
+ambient_shade (gsize    width,
+               gsize    height,
+               gsize    depth,
+               guint16 *blocks,
                GLfloat *pos)
 {
     int n_around = 0;
-    if (pv_map_get_block (map, pos[0], pos[1], pos[2]) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0], pos[1], pos[2]) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0] - 1, pos[1], pos[2]) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0] - 1, pos[1], pos[2]) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0] - 1, pos[1] - 1, pos[2]) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0] - 1, pos[1] - 1, pos[2]) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0], pos[1] - 1, pos[2]) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0], pos[1] - 1, pos[2]) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0], pos[1], pos[2] - 1) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0], pos[1], pos[2] - 1) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0] - 1, pos[1], pos[2] - 1) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0] - 1, pos[1], pos[2] - 1) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0] - 1, pos[1] - 1, pos[2] - 1) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0] - 1, pos[1] - 1, pos[2] - 1) != 0)
        n_around++;
-    if (pv_map_get_block (map, pos[0], pos[1] - 1, pos[2] - 1) != NULL)
+    if (get_block (width, height, depth, blocks, pos[0], pos[1] - 1, pos[2] - 1) != 0)
        n_around++;
 
     // FIXME: Work out concaveness properly
@@ -123,7 +135,10 @@ ambient_shade (PvMap   *map,
 }
 
 static void
-add_square (PvMap   *map,
+add_square (gsize    width,
+            gsize    height,
+            gsize    depth,
+            guint16 *blocks,
             GArray  *vertices,
             GArray  *triangles,
             GLfloat *a,
@@ -135,25 +150,25 @@ add_square (PvMap   *map,
 
     add_vec3 (vertices, a);
     GLfloat color[3];
-    vec3_mult (color, face_color, ambient_shade (map, a));
+    vec3_mult (color, face_color, ambient_shade (width, height, depth, blocks, a));
     add_vec3 (vertices, color);
 
     GLfloat b[3];
     vec3_add (b, a, v0);
     add_vec3 (vertices, b);
-    vec3_mult (color, face_color, ambient_shade (map, b));
+    vec3_mult (color, face_color, ambient_shade (width, height, depth, blocks, b));
     add_vec3 (vertices, color);
 
     GLfloat c[3];
     vec3_add (c, b, v1);
     add_vec3 (vertices, c);
-    vec3_mult (color, face_color, ambient_shade (map, c));
+    vec3_mult (color, face_color, ambient_shade (width, height, depth, blocks, c));
     add_vec3 (vertices, color);
 
     GLfloat d[3];
     vec3_add (d, a, v1);
     add_vec3 (vertices, d);
-    vec3_mult (color, face_color, ambient_shade (map, d));
+    vec3_mult (color, face_color, ambient_shade (width, height, depth, blocks, d));
     add_vec3 (vertices, color);
 
     add_uint (triangles, start + 0);
@@ -177,6 +192,21 @@ setup (PvRenderer *self)
     gsize height = pv_map_get_height (self->map);
     gsize depth = pv_map_get_depth (self->map);
 
+    g_autofree guint16 *blocks = g_malloc (sizeof (guint16) * width * height * depth);
+    pv_map_get_blocks (self->map, 0, 0, 0, width, height, depth, blocks);
+
+    gsize block_count = pv_map_get_block_count (self->map);
+    g_autofree gfloat *colors = g_malloc (sizeof (gfloat) * block_count * 3);
+    gsize offset = 0;
+    for (gsize block_id = 0; block_id < block_count; block_id++) {
+        guint8 red, green, blue;
+        pv_map_get_block_color (self->map, block_id, &red, &green, &blue);
+        colors[offset + 0] = red / 255.0;
+        colors[offset + 1] = green / 255.0;
+        colors[offset + 2] = blue / 255.0;
+        offset += 3;
+    }
+
     GLfloat north[3] = {  1,  0,  0 };
     GLfloat south[3] = { -1,  0,  0 };
     GLfloat east[3]  = {  0,  1,  0 };
@@ -193,16 +223,14 @@ setup (PvRenderer *self)
     for (int x = 0; x < width; x++) {
         for (int y = height; y >= 0; y--) {
             for (int z = 0; z < depth; z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
+                guint16 block_id = get_block (width, height, depth, blocks, x, y, z);
+                if (block_id == 0)
                     continue;
-                if (pv_map_get_block (self->map, x, y + 1, z) != NULL)
+                if (get_block (width, height, depth, blocks, x, y + 1, z) != 0)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                gfloat color[3];
-                pv_block_type_get_color (type, color);
-                add_square (self->map, vertices, triangles, top_pos, south, down, color);
+                add_square (width, height, depth, blocks, vertices, triangles, top_pos, south, down, colors + block_id * 3);
                 self->north_size += 2;
                 if (y + 1 > self->north)
                     self->north = y + 1;
@@ -214,16 +242,14 @@ setup (PvRenderer *self)
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
+                guint16 block_id = get_block (width, height, depth, blocks, x, y, z);
+                if (block_id == 0)
                     continue;
-                if (pv_map_get_block (self->map, x, y - 1, z) != NULL)
+                if (get_block (width, height, depth, blocks, x, y - 1, z) != 0)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                gfloat color[3];
-                pv_block_type_get_color (type, color);
-                add_square (self->map, vertices, triangles, base_pos, up, north, color);
+                add_square (width, height, depth, blocks, vertices, triangles, base_pos, up, north, colors + block_id * 3);
                 self->south_size += 2;
                 if (y < self->south)
                     self->south = y;
@@ -235,16 +261,14 @@ setup (PvRenderer *self)
     for (int x = width; x >= 0; x--) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
+                guint16 block_id = get_block (width, height, depth, blocks, x, y, z);
+                if (block_id == 0)
                     continue;
-                if (pv_map_get_block (self->map, x + 1, y, z) != NULL)
+                if (get_block (width, height, depth, blocks, x + 1, y, z) != 0)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                gfloat color[3];
-                pv_block_type_get_color (type, color);
-                add_square (self->map, vertices, triangles, top_pos, down, west, color);
+                add_square (width, height, depth, blocks, vertices, triangles, top_pos, down, west, colors + block_id * 3);
                 self->east_size += 2;
                 if (x > self->east)
                     self->east = x;
@@ -256,16 +280,14 @@ setup (PvRenderer *self)
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
+                guint16 block_id = get_block (width, height, depth, blocks, x, y, z);
+                if (block_id == 0)
                     continue;
-                if (pv_map_get_block (self->map, x - 1, y, z) != NULL)
+                if (get_block (width, height, depth, blocks, x - 1, y, z) != 0)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                gfloat color[3];
-                pv_block_type_get_color (type, color);
-                add_square (self->map, vertices, triangles, base_pos, east, up, color);
+                add_square (width, height, depth, blocks, vertices, triangles, base_pos, east, up, colors + block_id * 3);
                 self->west_size += 2;
                 if (x < self->west)
                     self->west = x;
@@ -277,16 +299,14 @@ setup (PvRenderer *self)
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = depth; z >= 0; z--) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
+                guint16 block_id = get_block (width, height, depth, blocks, x, y, z);
+                if (block_id == 0)
                     continue;
-                if (pv_map_get_block (self->map, x, y, z + 1) != NULL)
+                if (get_block (width, height, depth, blocks, x, y, z + 1) != 0)
                     continue;
 
                 GLfloat top_pos[3] = { x + 1, y + 1, z + 1 };
-                gfloat color[3];
-                pv_block_type_get_color (type, color);
-                add_square (self->map, vertices, triangles, top_pos, west, south, color);
+                add_square (width, height, depth, blocks, vertices, triangles, top_pos, west, south, colors + block_id * 3);
                 self->top_size += 2;
                 if (z + 1 > self->top)
                     self->top = z + 1;
@@ -298,16 +318,14 @@ setup (PvRenderer *self)
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             for (int z = 0; z < depth; z++) {
-                PvBlockType *type = pv_map_get_block (self->map, x, y, z);
-                if (type == NULL)
+                guint16 block_id = get_block (width, height, depth, blocks, x, y, z);
+                if (block_id == 0)
                     continue;
-                if (pv_map_get_block (self->map, x, y, z - 1) != NULL)
+                if (get_block (width, height, depth, blocks, x, y, z - 1) != 0)
                     continue;
 
                 GLfloat base_pos[3] = { x, y, z };
-                gfloat color[3];
-                pv_block_type_get_color (type, color);
-                add_square (self->map, vertices, triangles, base_pos, north, east, color);
+                add_square (width, height, depth, blocks, vertices, triangles, base_pos, north, east, colors + block_id * 3);
                 self->bottom_size += 2;
                 if (z < self->bottom)
                     self->bottom = z;
